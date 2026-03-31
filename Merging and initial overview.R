@@ -211,15 +211,16 @@ cm_2025 <- cm_2025 %>%
 
 write.csv(cm_2025, "cm_2025_total.csv")
 
+
+# one file for 2025 -------------------------------
 cm <- read.csv("cm_2025_total.csv")
 
+# check data
 
 str(cm) 
 summary(cm) 
 summary(cm$autoid) 
 colSums(is.na(cm))
-
-
 
 na_rows <- cm %>% filter(is.na(DATE))
 
@@ -234,23 +235,22 @@ cm <- cm %>%
                 autoid, PULSES, MATCH_RATIO, ALTERNATE_1, Site
   )
 
-
 # rows that don't have a file name, but have autoid
-na_rows <- cm %>% filter(is.na(filename)) # miks seal on 57 rida mis pole nimedega? kuidas seda parandada?
+na_rows <- cm %>% filter(is.na(filename)) 
 # delete Noise rows and those that last too little
 na_rows <- na_rows[na_rows$autoid != "Noise", ]
 na_rows <- na_rows[na_rows$DURATION > 1, ]
+# why is there 57 rows of data without filenames?
 
 # 4 locations have the DATE columns in wrong format (CM-07, CM-08, CM-26, CM-45)
 
-# Initialize
+# new date column
 cm$DATE_clean <- as.Date(NA)
 
-# Identify formats
+# 2 formats
 idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", cm$DATE)
 idx_short <- grepl("^\\d{1,2}-\\d{1,2}-\\d{2}$", cm$DATE)
 
-# Parse
 cm$DATE_clean[idx_iso] <- ymd(cm$DATE[idx_iso])
 cm$DATE_clean[idx_short] <- dmy(cm$DATE[idx_short])
 
@@ -262,10 +262,10 @@ cm$DATE_clean <- format(cm$DATE_clean, "%Y-%m-%d")
 
 # Same for DATE_12 column
 
-# Initialize
+# new column
 cm$DATE_12_clean <- as.Date(NA)
 
-# Identify formats
+# 2 formats
 idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", cm$DATE_12)
 idx_short <- grepl("^\\d{1,2}-\\d{1,2}-\\d{2}$", cm$DATE_12)
 
@@ -279,22 +279,26 @@ cm$DATE_12_clean[idx_short] <- update(cm$DATE_12_clean[idx_short], year = 2025)
 # Final format
 cm$DATE_12_clean <- format(cm$DATE_12_clean, "%Y-%m-%d")
 
+# make dates
+cm$DATE_clean <- as.Date(cm$DATE_clean)
+cm$DATE_12_clean <- as.Date(cm$DATE_12_clean)
 
+# remove other date columns and replace them with new ones
 
-##----------check the code after this point for 2025----------------------------------------------------------------
+cm <- cm %>%
+  select(-DATE) %>% 
+  relocate(DATE_clean, .after = DURATION) %>%
+  rename (DATE = DATE_clean)
+  select(-DATE_12) %>% 
+  relocate(DATE_12_clean, .after = HOUR) %>%
+  rename (DATE_12 = DATE_12_clean)
+  
 
+# find PIPPIP and change them to PIPPYG
 
+cm$autoid[cm$autoid == "PIPPIP"] <- "PIPPYG"
 
-
-
-
-
-# remove tests, by location: date deployed and date retrieved
-
-
-
-
-# Make overview table for the year, mostly based on the 2024 all data combined folder.  --------
+# Overview table for 2025--------------------------
 
 # new table called overview_summary
 
@@ -307,8 +311,8 @@ overview_summary <- cm %>%
     pnatcalls = sum(autoid == "PIPNAT"),
     batcalls = sum(autoid!="Noise"),
     pnatcalls_pct = 100 * pnatcalls/ batcalls,
-    days_active = sum(n_distinct(DATE_clean)),
-    earliest_active = min(DATE_clean),
+    days_active = sum(n_distinct(DATE)),
+    earliest_active = min(DATE),
     last_active = max(DATE),
   )
 
@@ -378,7 +382,8 @@ overview_summary <- overview_summary %>%
     by= "Site"
   )
 
-#esquisser()
+
+# Where is the most noise, visualisation  -------------------------------------------------------------------
 
 # plot of noise and nr of bat calls
 ggplot(overview_summary) +
@@ -390,9 +395,6 @@ ggplot(overview_summary) +
        y = "Number of recordings with bat calls", title = "Correlation between noise and bat calls", subtitle = "By location") +
   theme_classic() +
   theme(legend.text = element_text(face = "bold"), legend.title = element_text(face = "bold"))
-
-
-# Where is the most noise, visualisation  -------------------------------------------------------------------
 
 barnoise <- ggplot(cm) + 
   geom_bar(aes(x= Site, fill = autoid), position = "fill") +
@@ -406,10 +408,9 @@ barnoise
 
 # visualize recording period
 
-cm$DATE_12_clean <- as.Date(cm$DATE_12_clean)
 
 ggplot(cm) + 
-  geom_bin2d(aes(x = DATE_12_clean, y = Site), bins = 100) +  # Adjust bins for detail
+  geom_bin2d(aes(x = DATE_12, y = Site), bins = 100) +  # Adjust bins for detail
   scale_fill_viridis_c() +  # Better color scale for density
   xlab("Month") + ylab("Site") +
   scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
@@ -418,13 +419,13 @@ ggplot(cm) +
 
 
 # gaps in dataset, more info for overview ---------------------------------------------------------
-# DATE.12 is the start of the night eg. the start date. 
+# DATE_12 is the start of the night eg. the start date. 
 
 # Step 1: Generate a complete sequence of dates for each site from deployment
 complete_dates <- overview_summary %>% 
   mutate(
     BeginDate = as.Date(date_deployed),
-    EndDate   = as.Date(date_retrieved) - 1,
+    EndDate   = coalesce(as.Date(date_retrieved), as.Date("2025-10-22")) - 1,
     full_dates = map2(BeginDate, EndDate, ~ seq.Date(from = .x, to = .y, by = "day"))
   ) %>%
   select(Site, full_dates) %>%
@@ -433,7 +434,7 @@ complete_dates <- overview_summary %>%
 
 # Step 2: Get the actual available dates from cm by site
 available_dates <- cm %>%
-  mutate(ActualDate = as.Date(DATE.12)) %>%
+  mutate(ActualDate = as.Date(DATE_12)) %>%
   reframe(ActualDate = unique(ActualDate), .by = "Site")
 
 # Step 3: For each site, find the dates that are expected but missing in the actual data
@@ -473,17 +474,28 @@ overview_summary <- overview_summary %>%
 
 # some types still wrong
 
-overview_summary[1,14] = "inland" 
-overview_summary[31,14] = "coast" 
-overview_summary[40,14] = "coast" 
+overview_summary[1,13] = "inland" 
+overview_summary[29,13] = "coast" 
+overview_summary[34,13] = "coast" 
 
-#final product 
+# change missing retrival dates to 22-10-2025
 
-write.csv(overview_summary, "overview_2024.csv")
+overview_summary <- overview_summary %>% 
+  mutate(date_retrieved = if_else(
+    is.na(date_retrieved),
+    as.Date("2025-10-22"),
+    date_retrieved
+  ))
 
-overview_summary <- read.csv("overview_2024.csv")
+#final product ----------------------------------------------------------------------------
 
-#write.csv(missing_dates, "Missing dates v5.csv")
+write.csv(overview_summary, "overview_2025.csv")
+
+# going of from here --------------------
+
+overview_summary <- read.csv("overview_2025.csv")
+
+write.csv(missing_dates, "Missing_dates.csv")
 
 
 # daytime noise -----------------------------------------------------------
