@@ -288,7 +288,7 @@ cm$DATE_12_clean <- as.Date(cm$DATE_12_clean)
 cm <- cm %>%
   select(-DATE) %>% 
   relocate(DATE_clean, .after = DURATION) %>%
-  rename (DATE = DATE_clean)
+  rename (DATE = DATE_clean) %>% 
   select(-DATE_12) %>% 
   relocate(DATE_12_clean, .after = HOUR) %>%
   rename (DATE_12 = DATE_12_clean)
@@ -382,6 +382,10 @@ overview_summary <- overview_summary %>%
     by= "Site"
   )
 
+
+# one working file for 2025--------------
+
+write.csv(cm, "cm_2025.csv")
 
 # Where is the most noise, visualisation  -------------------------------------------------------------------
 
