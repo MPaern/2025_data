@@ -385,7 +385,71 @@ overview_summary <- overview_summary %>%
 
 # one working file for 2025--------------
 
+
+# found 2 gaps (CM-35, CM-44) that are not explained, ran Kaleidoscope for those timeframes again to get an id.csv file
+
+df35 <- read.csv("P:/SW_CoastalMonitoring/Data_collection_2025/CM-35/WAV/KPRO_V1/New_25.09.2025/id.csv")
+df44 <- read.csv("P:/SW_CoastalMonitoring/Data_collection_2025/CM-44/WAV/KPRO_V1/New_30.09.2025/id.csv")
+
+df35$Site <- "CM-35"
+df44$Site <- "CM-44"
+
+df35$filename <- df35$IN.FILE
+df44$filename <- df44$IN.FILE
+
+df35 <- df35 %>% 
+  rename(
+    IN_FILE = "IN.FILE",
+    DATE_12 = "DATE.12",
+    TIME_12 = "TIME.12",
+    HOUR_12 = "HOUR.12",
+    autoid = "AUTO.ID.",
+    MATCH_RATIO = "MATCH.RATIO",
+    ALTERNATE_1 = "ALTERNATE.1") %>% 
+  mutate(autoid = factor(autoid),
+         DATE_12 = as.Date(DATE_12, format = "%d/%m/%Y"),
+         DATE = as.Date(DATE, format = "%d/%m/%Y")) %>% 
+  dplyr::select(OUTDIR, FOLDER, IN_FILE, filename, DURATION, 
+                DATE, TIME, HOUR,
+                DATE_12, TIME_12, HOUR_12,
+                autoid, PULSES, MATCH_RATIO, ALTERNATE_1, Site
+  )
+
+df44 <- df44 %>% 
+  rename(
+    IN_FILE = "IN.FILE",
+    DATE_12 = "DATE.12",
+    TIME_12 = "TIME.12",
+    HOUR_12 = "HOUR.12",
+    autoid = "AUTO.ID.",
+    MATCH_RATIO = "MATCH.RATIO",
+    ALTERNATE_1 = "ALTERNATE.1") %>% 
+  mutate(autoid = factor(autoid),
+         DATE_12 = as.Date(DATE_12, format = "%d/%m/%Y"),
+         DATE = as.Date(DATE, format = "%d/%m/%Y")) %>% 
+  dplyr::select(OUTDIR, FOLDER, IN_FILE, filename, DURATION, 
+                DATE, TIME, HOUR,
+                DATE_12, TIME_12, HOUR_12,
+                autoid, PULSES, MATCH_RATIO, ALTERNATE_1, Site
+  )
+
+# find what files are not in cm and add those there
+
+new_from_35 <- df35 %>%
+  anti_join(cm, by = "filename")
+
+new_from_44 <- df44 %>%
+  anti_join(cm, by = "filename")
+
+cm <- cm %>%
+  bind_rows(new_from_35, new_from_44)
+
+
+# full file
+
 write.csv(cm, "cm_2025.csv")
+
+cm <- read.csv("cm_2025.csv")
 
 # Where is the most noise, visualisation  -------------------------------------------------------------------
 
@@ -418,7 +482,7 @@ ggplot(cm) +
   scale_fill_viridis_c() +  # Better color scale for density
   xlab("Month") + ylab("Site") +
   scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
-  ggtitle("Recording activity 2025") + 
+  ggtitle("Recording period 2025") + 
   theme_minimal()
 
 
@@ -498,3 +562,6 @@ write.csv(overview_summary, "overview_2025.csv")
 overview_summary <- read.csv("overview_2025.csv")
 
 # write.csv(missing_dates, "Missing_dates.csv")
+
+
+
