@@ -425,7 +425,7 @@ ggplot(cm) +
 # gaps in dataset, more info for overview ---------------------------------------------------------
 # DATE_12 is the start of the night eg. the start date. 
 
-# Step 1: Generate a complete sequence of dates for each site from deployment
+# all dates all sites should be active on
 complete_dates <- overview_summary %>% 
   mutate(
     BeginDate = as.Date(date_deployed),
@@ -436,18 +436,16 @@ complete_dates <- overview_summary %>%
   unnest(full_dates) %>%
   rename(ExpectedDate = full_dates)
 
-# Step 2: Get the actual available dates from cm by site
+# all dates I have in the dataset for each site
 available_dates <- cm %>%
-  mutate(ActualDate = as.Date(DATE)) %>%
+  mutate(ActualDate = as.Date(DATE_12)) %>%
   reframe(ActualDate = unique(ActualDate), .by = "Site")
 
-# Step 3: For each site, find the dates that are expected but missing in the actual data
-
+# missing nights for each site
 missing_dates <- complete_dates %>%
   anti_join(available_dates, by = c("Site", "ExpectedDate" = "ActualDate"))
 
-# View missing dates by site
-
+# View missing nights by site
 ggplot(missing_dates) + 
   geom_point(aes(x = ExpectedDate, y = Site)) +  
   scale_fill_viridis_c() + 
@@ -455,7 +453,7 @@ ggplot(missing_dates) +
   ggtitle("Missing dates") + 
   theme_minimal()
 
-# add missing dates to overview_summary
+# add missing nights to overview_summary
 
 n_missing_days <- missing_dates %>%
   group_by(Site) %>%
@@ -500,195 +498,3 @@ write.csv(overview_summary, "overview_2025.csv")
 overview_summary <- read.csv("overview_2025.csv")
 
 # write.csv(missing_dates, "Missing_dates.csv")
-
-
-# daytime noise -----------------------------------------------------------
-# make new df with sunrise and sunset times 
-cm_sun <- cm
-
-cm_sun <- cm_sun |> 
-  dplyr::select(FOLDER, filename, 
-                DATE, TIME,
-                autoid, Site
-  )
-cm_sun$DATE = as.POSIXct(cm_sun$DATE, format= "%Y-%m-%d")
-
-
-# read in df with locations
-location <-  read_csv("data/locations.csv")
-location$Z <- NULL
-location <- location |> 
-  rename(
-    Site = "Name"
-  )
-
-location_sf <- st_as_sf(location, coords = c("X", "Y"), crs = 4326)
-
-
-# add location to table
-
-cm_sun <- merge(cm_sun, location_sf, by = "Site")
-cm_sun<- cm_sun |> 
-  rename(
-    location = "geometry"
-  )
-cm_sun$location <- st_as_sf(cm_sun$location)
-# names(cm_sun)[7] <- "location"
-
-# calculate sunrise and sunset for each day
-
-cm_sun$sunrise <- sunriset(cm_sun$location, cm_sun$DATE, direction = "sunrise", POSIXct.out = TRUE)$time
-cm_sun$sunset <- sunriset(cm_sun$location, cm_sun$DATE, direction = "sunset", POSIXct.out = TRUE)$time
-
-# correct timezone
-
-cm_sun$sunrise <- with_tz(cm_sun$sunrise, "Europe/Oslo")
-cm_sun$sunset <- with_tz(cm_sun$sunset, "Europe/Oslo")
-
-# add that to the cm by date? like sunrisetime and sunsettime and then make a column that says yes or no? or just extract the row if it's true and put it into another df?
-
-#put DATETIME together for a posixct 
-
-cm_sun$DateTime <- as.POSIXct(paste(cm_sun$DATE, cm_sun$TIME), format="%Y-%m-%d %H:%M:%S")
-
-#debug why it's not working- convert everything to just times
-
-df <- cm_sun %>%
-  # mutate(result = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE))
-  mutate(across(c(sunrise, sunset, DateTime), as_hms)) %>%
-  mutate(
-    daytime = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE)
-  )
-
-#find autoIDs that are bats or NoID in cm and put them to another dataframe
-
-daytimebats <- subset(df, daytime == "TRUE")
-
-
-
-# plot the result 
-
-ggplot(daytimebats) + 
-  geom_bin2d(aes(x = DATE, y = Site), bins = 100) +  # Adjust bins for detail
-  scale_fill_viridis_c() +  # Better color scale for density
-  xlab("Month") + ylab("Site") +
-  ggtitle("Bats during daytime") + 
-  theme_minimal()
-
-ggplot(daytimebats) +
-  aes(x = autoid, y = Site, fill = autoid) +
-  geom_tile() +
-  scale_fill_hue(direction = 1) +
-  theme_minimal()
-
-# save file as csv to get all data later:
-
-daytimebats <- daytimebats[, -7] # it was a matrix
-
-write_csv(daytimebats, "daytimebats_all.csv")
-
-
-# looking at only before sunset so eliminate detections after sunrise
-
-hrs_1 <- 1 * 60 * 60 
-
-df1 <- cm_sun %>%
-  # mutate(result = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE))
-  mutate(across(c(sunrise, sunset, DateTime), as_hms)) %>%
-  mutate(
-    daytime = ifelse(autoid != "Noise" & DateTime >= sunrise + hrs_1 & DateTime <= sunset, TRUE, FALSE)
-  )
-
-#find autoIDs that are bats or NoID in cm and put them to another dataframe
-
-daytimebats1 <- subset(df1, daytime == "TRUE")
-
-ggplot(daytimebats1) + 
-  geom_bin2d(aes(x = DATE, y = Site), bins = 100) +  # Adjust bins for detail
-  scale_fill_viridis_c() +  # Better color scale for density
-  xlab("Month") + ylab("Site") +
-  ggtitle("Bats during daytime") + 
-  theme_minimal()
-
-# Graph with 3 instead of 5 aka sunset is 3h before aka all that is left from 
-
-hrs_3 <- 3 * 60 * 60 
-
-df3 <- cm_sun %>%
-  # mutate(result = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE))
-  mutate(across(c(sunrise, sunset, DateTime), as_hms)) %>%
-  mutate(
-    daytime = ifelse(autoid != "Noise" & DateTime >= sunrise + hrs_1 & DateTime <= sunset - hrs_3, TRUE, FALSE)
-  )
-
-#find autoIDs that are bats or NoID in cm and put them to another dataframe
-
-daytimebats3 <- subset(df3, daytime == "TRUE")
-
-ggplot(daytimebats3) + 
-  geom_bin2d(aes(x = DATE, y = Site), bins = 100) +  # Adjust bins for detail
-  scale_fill_viridis_c() +  # Better color scale for density
-  xlab("Month") + ylab("Site") +
-  ggtitle("Bats during daytime") + 
-  theme_minimal()
-
-ggplot(daytimebats3) +
-  aes(x = autoid, y = Site, fill = autoid) +
-  geom_tile() +
-  scale_fill_hue(direction = 1) +
-  theme_minimal()
-
-
-# Graph with 2 instead of 5
-
-hrs_2 <- 2 * 60 * 60 
-
-df2 <- cm_sun %>%
-  # mutate(result = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE))
-  mutate(across(c(sunrise, sunset, DateTime), as_hms)) %>%
-  mutate(
-    daytime = ifelse(autoid != "Noise" & DateTime >= sunrise + hrs_1 & DateTime <= sunset - hrs_2, TRUE, FALSE)
-  )
-
-#find autoIDs that are bats or NoID in cm and put them to another dataframe
-
-daytimebats2 <- subset(df2, daytime == "TRUE")
-
-ggplot(daytimebats2) + 
-  geom_bin2d(aes(x = DATE, y = Site), bins = 100) +  # Adjust bins for detail
-  scale_fill_viridis_c() +  # Better color scale for density
-  xlab("Month") + ylab("Site") +
-  ggtitle("Bats during daytime") + 
-  theme_minimal()
-
-# Graph with 4 instead of 5
-
-hrs_4 <- 4 * 60 * 60 
-
-df4 <- cm_sun %>%
-  # mutate(result = ifelse(autoid != "Noise" & DateTime >= sunrise & DateTime <= sunset, TRUE, FALSE))
-  mutate(across(c(sunrise, sunset, DateTime), as_hms)) %>%
-  mutate(
-    daytime = ifelse(autoid != "Noise" & DateTime >= sunrise + hrs_1 & DateTime <= sunset - hrs_4, TRUE, FALSE)
-  )
-
-#find autoIDs that are bats or NoID in cm and put them to another dataframe
-
-daytimebats4 <- subset(df4, daytime == "TRUE")
-
-ggplot(daytimebats4) + 
-  geom_bin2d(aes(x = DATE, y = Site), bins = 100) +  # Adjust bins for detail
-  scale_fill_viridis_c() +  # Better color scale for density
-  xlab("Month") + ylab("Site") +
-  ggtitle("Bats during daytime") + 
-  theme_minimal()
-
-
-# Subset with daytime bats before sunset ----------------------------------
-
-# all the listings in daytimebats1 (this is without those after sunrise)
-# to go through 2024 and put new ID files to the ones with different outdir.
-
-# esquisser()
-
-
