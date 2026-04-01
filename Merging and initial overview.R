@@ -438,7 +438,7 @@ complete_dates <- overview_summary %>%
 
 # Step 2: Get the actual available dates from cm by site
 available_dates <- cm %>%
-  mutate(ActualDate = as.Date(DATE_12)) %>%
+  mutate(ActualDate = as.Date(DATE)) %>%
   reframe(ActualDate = unique(ActualDate), .by = "Site")
 
 # Step 3: For each site, find the dates that are expected but missing in the actual data
