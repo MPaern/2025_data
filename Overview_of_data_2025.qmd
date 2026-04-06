@@ -1,0 +1,267 @@
+---
+title: "Overview of data collected in the field season of 2025 for coastal monitoring"
+author: "Maris Pärn"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+```{r setup}
+#| echo: false
+#| warning: false
+
+#setup
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(MetBrewer)
+library(hms)
+library(leaflet.minicharts)
+library(leaflet)
+library(tidyr)
+
+
+
+# read necessary data in
+
+overview_summary <- read.csv("overview_2025.csv")
+cm <- read.csv("cm_2025.csv") 
+missing_dates <- read.csv("missing_dates_2025.csv")
+#missing_2024 <- read.csv("2024_missing_vetted.csv")
+
+# overview figures
+
+available_dates <- cm %>%
+  mutate(ActualDate = as.Date(DATE_12)) %>%
+  reframe(ActualDate = unique(ActualDate), .by = "Site")
+
+complete_dates <- overview_summary %>% 
+  mutate(
+    BeginDate = as.Date(date_deployed),
+    EndDate   = coalesce(as.Date(date_retrieved), as.Date("2025-10-22")) - 1,
+    full_dates = map2(BeginDate, EndDate, ~ seq.Date(from = .x, to = .y, by = "day"))
+  ) %>%
+  select(Site, full_dates) %>%
+  unnest(full_dates) %>%
+  rename(ExpectedDate = full_dates)
+
+```
+
+## Overview
+
+###Year in numbers
+
+Number of detectors: 50\
+
+Number of detectors that survived the season: 49\
+
+Reasons of detector failure: seawater damage, storms, microphone losing sensitivity, teft.\
+
+Date of first deployment: `r min(overview_summary$date_deployed)`\
+
+Date of last deployment: `r max(overview_summary$date_deployed)`\
+
+Date of first retrieval: `r min(overview_summary$date_retrieved)`\
+
+Date of last retrieval: `r max(overview_summary$date_retrieved)`\
+
+Days detectors were on the field: `r nrow(available_dates)`\
+
+Days with missing data: `r nrow(missing_dates)`\
+
+\% of missing data from all data: ca `r  100 * nrow(missing_dates)/ nrow(complete_dates)`\
+
+Reasons of missing data:\
+
+1\) No bats, no noise detected (later Nodata): 134\
+
+2\) SD card full: 244\
+
+3\) Batteries empty: 17\
+
+4\) Detector dead: 113\
+
+5\) Detector stolen: 55\
+
+6\) SD card not formatted: 34\
+
+Average time detector deployed: `r mean(overview_summary$days_active)`\
+
+```{r preparing missing dates data}
+#| echo: false
+#| warning: false
+
+complete_dates <- overview_summary |>  
+  mutate(
+    BeginDate = as.Date(date_deployed),
+    EndDate   = as.Date(date_retrieved) - 1,
+    full_dates = map2(BeginDate, EndDate, ~ seq.Date(from = .x, to = .y, by = "day"))
+  ) |> 
+  select(Site, full_dates) |> 
+  unnest(full_dates) |> 
+  rename(ExpectedDate = full_dates)
+
+available_dates <- cm %>%
+  mutate(ActualDate = as.Date(DATE_12)) %>%
+  reframe(ActualDate = unique(ActualDate), .by = "Site")
+
+available_dates <- available_dates %>%
+  mutate(Type = "Observed")
+
+missing_dates$X <- NULL
+
+missing_dates <- missing_dates %>%
+  rename(
+    Date = ExpectedDate
+  )
+
+available_dates <- available_dates %>%
+  rename(
+    Date = ActualDate
+  )
+
+missing_dates <- missing_dates %>%
+  mutate(Type = "Missing") %>% 
+  mutate(Date=ymd(Date))
+
+
+all_dates <- bind_rows(available_dates, missing_dates)
+```
+
+```{r data preparation for plots in this document}
+#| echo: false
+#| warning: false
+
+# missing dates plot
+  # add type NoData (aka no recordings) to Observed and Missing
+
+missing_2025 <- missing_dates %>%
+  mutate(ExpectedDate=mdy(ExpectedDate))
+
+NoData <-  missing_2024 |> 
+  filter(Battery.status == "OK", SD.card.status == "OK") |> 
+  select(Site, ExpectedDate) |> 
+  rename(
+    Date = ExpectedDate
+  ) |> 
+  data.frame(Type = "NoData")
+
+all_dates <- all_dates |> 
+  left_join(NoData, by = c("Site", "Date"), suffix = c("", "_new")) |> 
+  mutate(Type = if_else(!is.na(Type_new), Type_new, Type)) |> 
+  select(-Type_new)
+
+# noise plot
+
+noise_coast <- cm[,c(13,16)]
+noise_coast$type <- overview_summary$type[match(noise_coast$Site, overview_summary$Site)]
+
+# autoid plot
+
+auto_id_data <- cm[,c(10,13, 15, 16)]
+auto_id_data$type <- overview_summary$type[match(auto_id_data$Site, overview_summary$Site)]
+
+# combined bat calls plot
+
+cm <- cm %>%
+  mutate(DATE.12=ymd(DATE.12))
+
+# activity plot
+  # adding a column "type"
+
+cm$type <- overview_summary$type[match(cm$Site, overview_summary$Site)]
+
+
+```
+
+```{r pnat data preparation}
+#| echo: false
+#| warning: false
+
+# choose PIPNAT
+
+cm_pnat <- cm %>%
+  filter(autoid == "PIPNAT") 
+
+cm_pnat_c <- cm_pnat |>
+  filter(type == "coast") %>%
+  filter(month(DATE.12) %in% c(8, 9, 10))
+
+# add median dates
+
+median_dates_all <- cm_pnat %>%
+  group_by(Site) %>%
+  summarise(median = median(DATE.12, na.rm = TRUE))
+
+median_dates_all$latitude <-overview_summary$latitude[match(median_dates_all$Site, overview_summary$Site)]
+
+median_dates_all <- median_dates_all %>%
+  arrange(latitude) %>%
+  mutate(Site = factor(Site, levels = Site))
+
+cm_pnat_c <- cm_pnat_c %>%
+  mutate(TIME=as_hms(TIME))
+
+cm_pnat_c <- cm_pnat_c %>%
+  mutate(TIME.12=as_hms(TIME.12))
+
+
+# median(cm_pnat_c$DATE.12, na.rm = FALSE)
+
+median_dates <- cm_pnat_c %>%
+  group_by(Site) %>%
+  summarise(median = median(DATE.12, na.rm = TRUE))
+
+median_dates$latitude <-overview_summary$latitude[match(median_dates$Site, overview_summary$Site)]
+
+median_dates <- median_dates %>%
+  arrange(latitude) %>%
+  mutate(Site = factor(Site, levels = Site))
+
+cm_pnat_c <- cm_pnat_c %>%
+  mutate(TIME=as_hms(TIME))
+
+cm_pnat_c <- cm_pnat_c %>%
+  mutate(TIME.12=as_hms(TIME.12))
+
+# half a month
+
+cm_pnat_c <- cm_pnat_c %>%
+  mutate(
+    HalfMonth = case_when(
+      lubridate::day(DATE) <= 15 ~
+        paste0(lubridate::year(DATE), "-", sprintf("%02d", lubridate::month(DATE)), "-H1"),
+      TRUE ~
+        paste0(lubridate::year(DATE), "-", sprintf("%02d", lubridate::month(DATE)), "-H2")
+    )
+  )
+
+#check for duplicates
+  #dim(cm_pnat_c[duplicated(cm_pnat_c$filename),])[1]
+
+# 
+
+```
+
+## Deployment times
+
+This is a graph that shows the days with missing data and how long the detectors were in the field.
+
+```{r missing dates plot}
+#| echo: false
+#| label: fig-missing
+#| warning: false
+#| fig-cap: Missing dates 2024
+
+ggplot(all_dates, aes(x = Date, y = Site, color = Type)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Observed" = "azure3", "NoData" = "darkgrey", "Missing" = "red")) +
+  theme_minimal() +
+  scale_y_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  labs(title = "Observed and Missing Dates for 2024")
+
+
+```
