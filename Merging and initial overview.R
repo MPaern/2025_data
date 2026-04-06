@@ -563,5 +563,19 @@ overview_summary <- read.csv("overview_2025.csv")
 
 # write.csv(missing_dates, "Missing_dates.csv")
 
+write.csv(missing_dates, "missing_dates_2025.csv")
 
 
+#working with cm
+
+cm <- read.csv("cm_2025_total.csv")
+cm <- read.csv("cm_2025.csv")
+
+cm$DATE <- as.Date(cm$DATE)
+cm$DATE_12 <- as.Date(cm$DATE_12)
+
+
+str(cm) 
+summary(cm) 
+summary(cm$autoid) 
+colSums(is.na(cm))
