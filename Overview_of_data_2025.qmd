@@ -130,7 +130,6 @@ missing_dates <- missing_dates %>%
 
 all_dates <- bind_rows(available_dates, missing_dates)
 
-100 * nrow(missing_dates)/ nrow(complete_dates)
 ```
 
 ```{r data preparation for plots in this document}
