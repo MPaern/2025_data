@@ -49,10 +49,14 @@ complete_dates <- overview_summary %>%
   rename(ExpectedDate = full_dates)
 
 ```
+## Summary of 2025
+
+![](images/DSC04793.JPG)
+
 
 ## Overview
 
-###Year in numbers
+**Year in numbers**
 
 Number of detectors: 50\
 
@@ -258,7 +262,7 @@ This is a graph that shows the days with missing data and how long the detectors
 #| echo: false
 #| label: fig-missing
 #| warning: false
-#| fig-cap: Missing dates 2024
+#| fig-cap: Missing dates 2025
 
 ggplot(all_dates, aes(x = Date, y = Site, color = Type)) +
   geom_point(size = 2) +
@@ -270,79 +274,260 @@ ggplot(all_dates, aes(x = Date, y = Site, color = Type)) +
 
 ```
 
-### Nathusius' pipistrelle activity
-ggplot(all_dates, aes(x = Date, y = Site, color = Type)) +
-  geom_point(size = 2) +
-  scale_color_manual(values = c("Observed" = "azure3", "NoData" = "darkgrey", "Missing" = "red")) +
-  theme_minimal() +
-  scale_y_discrete(expand = expansion(mult = c(0.01, 0.01)))+
-  labs(title = "Observed and Missing Dates for 2025")
 
-We can see that in our sites, the activity peaks in September.
+## Noise
 
-```{r pnat}
+@fig-noise Shows the proportion of noise in all the sites. We can see that some of the sites are a lot noisier than others. Coastal sites tend to have more noise, but it varies from ca 20% (CM-27, sheltered by Kvassheim lighthouse) to ca 99% (Utsira-2). From lakesites, the most noise was ca 70% (CM-46, Gismarvik) and the least ca 11% (CM-04, Stokkalandsvatnet, Sandnes).
+
+```{r noise figure 1}
 #| echo: false
-#| label: fig-pnat
+#| label: fig-noise
 #| warning: false
-#| fig-cap: Pnat calls
+#| fig-cap: Proportion of noise on sites
 
-ggplot(cm %>% 
-    filter(autoid == "PIPNAT") %>% 
-    droplevels(), aes(x= DATE_12, color = taxa)) + 
-  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
-    ylab("Recordings per night") + xlab("Month") +
-   ggtitle("Overall amount of calls 2025") +
-    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-    theme_minimal()
+ggplot(cm) + 
+  geom_bar(aes(x= reorder(Site, autoid == "Noise", FUN = mean), fill = autoid == "Noise"), position = "fill", width = 0.9) +
+  scale_fill_manual(name = "AutoID", values = c("TRUE" = "royalblue4", "FALSE" = "olivedrab3"), labels = c("Auto-ID bat calls", "Noise")) +
+  ylab("Proportion of recordings") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+
 ```
 
-```{r pnat 3}
+```{r noise figures 2-4}
 #| echo: false
-#| label: fig-pnat-3
+#| eval: false
+#| label: fig-noise-compare
 #| warning: false
-#| fig-cap: Comparison of Pnat activity in different sites
+#| include: false
+#| fig-cap: Comparison of noise in different sites
 #| fig-subcap:
-#| - "Activity on coast"
-#| - "Activity around lakes"
-#| - "Activity inland"
+#| - "Noise on coast"
+#| - "Noise around lakes"
+#| - "Noise inland"
 #| layout-ncol: 3
 #| column: page
 
+ggplot(subset(noise_coast, type == "coast")) + 
+  geom_bar(aes(x= reorder(Site, autoid == "Noise", FUN = mean), fill = autoid == "Noise"), position = "fill", width = 0.9) +
+  scale_fill_manual(name = "AutoID", values = c("TRUE" = "royalblue4", "FALSE" = "olivedrab3"), labels = c("Auto-ID bat calls", "Noise")) +
+  ylab("Proportion of recordings") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
 
-ggplot(cm %>% 
-    filter(autoid == "PIPNAT",
-            type == "coast") %>%
-    droplevels(), aes(x= DATE_12, color = taxa)) + 
-  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
-    ylab("Recordings per night") + xlab("Month") +
-   ggtitle("Overall activity on the coast") +
-    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-    theme_minimal()
+ggplot(subset(noise_coast, type == "lake")) + 
+  geom_bar(aes(x= reorder(Site, autoid == "Noise", FUN = mean), fill = autoid == "Noise"), position = "fill", width = 0.9) +
+  scale_fill_manual(name = "AutoID", values = c("TRUE" = "royalblue4", "FALSE" = "olivedrab3"), labels = c("Auto-ID bat calls", "Noise")) +
+  ylab("Proportion of recordings") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+  
+ggplot(subset(noise_coast, type == "inland")) + 
+  geom_bar(aes(x= reorder(Site, autoid == "Noise", FUN = mean), fill = autoid == "Noise"), position = "fill", width = 0.9) +
+  scale_fill_manual(name = "AutoID", values = c("TRUE" = "royalblue4", "FALSE" = "olivedrab3"), labels = c("Auto-ID bat calls", "Noise")) +
+  ylab("Proportion of recordings") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
 
-ggplot(cm %>% 
-    filter(autoid == "PIPNAT",
-            type == "lake") %>%
-    droplevels(), aes(x= DATE_12, color = taxa)) + 
-  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
-    ylab("Recordings per night") + xlab("Month") +
-   ggtitle("Overall activity around lakes") +
-    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-    theme_minimal()
-
-ggplot(cm %>% 
-    filter(autoid == "PIPNAT",
-            type == "inland") %>%
-    droplevels(), aes(x= DATE_12, color = taxa)) + 
-  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
-    ylab("Recordings per night") + xlab("Month") +
-   ggtitle("Overall activity inland") +
-    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-    theme_minimal()
 ```
 
-### Soprano pipistrelle activity
+If we look at the total amount of 5 second recordings on @fig-total, then the amount of noise varies less, with CM-47 (coast in Mosterøy), CM-16 (Fjord in Lista) and CM-06 (Mosvatnet) standing out as noisy locations. The best overview of how locations differ gives @fig-noisecall. We can see that the number of recordings we can work with is times bigger in lake sites than in coastal sites.
 
-Activity is higher leading up to the September peak, but we can still clearly see a peak that occurs earlier than that of Nathusius’ pipistrelles.
+In terms of how to distribute sites to different classes, I have made a third, "inland" class that doesn't really fit under the two others, with CM-01 (Utsira lighthouse), CM-07 (Raulemyra) and CM-41 (NMBU campus). Coastal sites are sites up to 400m from the coast, the furthest away being CM-25 near Brusand with 380 meters. There is also one lake site that falls into the 400m cutoff, CM-51 (Sirevåg) that is 280m from the coast. As for the inland sites, CM-01 is 600m from the coast and 480m from a freshwater lake, CM-07 is 9000m from the coast and 230m from a bigger freshwater source (wider part of a stream), CM-41 is 2230m from the coast and 100m from a bigger freshwater source (wider part of a stream).
+
+```{r noise figure 5}
+#| echo: false
+#| label: fig-total
+#| warning: false
+#| fig-cap: Amount of recordings and noise
+
+# the amount of noise stays the same, some places have just more bats?
+
+ggplot(noise_coast) + 
+  geom_bar(aes(x= reorder(Site, table(Site)[Site]), fill = autoid == "Noise"), width = 0.9) +
+  scale_fill_manual(name = "AutoID", values = c("TRUE" = "royalblue4", "FALSE" = "olivedrab3"), labels = c("Auto-ID bat calls", "Noise")) +
+  ylab("Number of 5s recordings") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+
+
+
+```
+
+```{r noise figure 6}
+#| echo: false
+#| label: fig-noisecall
+#| warning: false
+#| fig-cap: Correlation between recordings and the amount of noise
+
+ggplot(overview_summary) +
+  aes(x = `noise_pct`, y = `batcalls`, colour = type) +
+  geom_point(size = 3.35, 
+             shape = "diamond") +
+  scale_color_viridis_d(option = "cividis", direction = 1) +
+  labs(x = "Percentage of noise files in recordings", 
+       y = "Number of recordings with bat calls", title = "Correlation between noise and bat calls", subtitle = "By location") +
+  theme_classic() +
+  theme(legend.text = element_text(face = "bold"), legend.title = element_text(face = "bold"))
+```
+
+## AUTO-ID bats
+
+While the combined auto-id @fig-autoid doesn't give us a very detailed picture of what species are present, we can still get a proxy of the amount of recordings and species from it. When we compare the coast and the lakes, we can see that the amount of calls differs a lot (@fig-autoid-compare).\
+Out of the top 4 coastal locations, top 2 are next to big rivers (Obrestad Prestegård, Brusand), third one is Jøssingfjord and fourth is a fjord that looks like a lake (Framvaren).\
+CM-46 is the only lake site in a wind farm, but the low number of detections may be due to other reasons.
+
+```{r auto-id figure}
+#| echo: false
+#| label: fig-autoid
+#| warning: false
+#| fig-cap: Amount of bat calls
+
+ggplot(auto_id_data %>% filter(autoid != "Noise")) + 
+  geom_bar(aes(x= reorder(Site, table(Site)[Site]), fill = autoid)) +
+  scale_fill_manual(name = "AutoID", values = met.brewer("Signac", n = 13)) + 
+  ylab("Number of 5s KPRO files") + 
+  xlab("Site") +
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  coord_flip() +
+  theme(text = element_text(size = 10)) + 
+  theme_minimal()
+
+```
+
+```{r autoid 3 plots}
+#| echo: false
+#| label: fig-autoid-compare
+#| warning: false
+#| fig-cap: Comparison of autoid in different sites
+#| fig-subcap:
+#| - "AutoID on coast"
+#| - "AutoID around lakes"
+#| - "AutoID inland"
+#| layout-ncol: 3
+#| column: page
+
+ggplot(auto_id_data %>% 
+  filter(autoid != "Noise",
+          type == "coast")) + 
+  geom_bar(aes(x= reorder(Site, table(Site)[Site]), fill = autoid)) +
+  scale_fill_manual(name = "AutoID", values = met.brewer("Signac", n = 13)) + 
+  ylab("Number of 5s KPRO files") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+
+ggplot(auto_id_data %>% 
+  filter(autoid != "Noise",
+          type == "lake")) + 
+  geom_bar(aes(x= reorder(Site, table(Site)[Site]), fill = autoid)) +
+  scale_fill_manual(name = "AutoID", values = met.brewer("Signac", n = 13)) + 
+  ylab("Number of 5s KPRO files") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+  
+ggplot(auto_id_data %>% 
+  filter(autoid != "Noise",
+          type == "inland")) + 
+  geom_bar(aes(x= reorder(Site, table(Site)[Site]), fill = autoid)) +
+  scale_fill_manual(name = "AutoID", values = met.brewer("Signac", n = 13)) + 
+  ylab("Number of 5s KPRO files") + 
+  xlab("Site") +
+  theme(text = element_text(size = 10)) +
+  coord_flip() + 
+  scale_x_discrete(expand = expansion(mult = c(0.01, 0.01)))+
+  theme_minimal()
+
+```
+
+## Timing of calls
+
+We can see on @fig-bat-calls that in April the total amount of calls starts to rise and in September, the total amount of calls recorded starts to drop. We have to bear in mind here that the beginning and end of the graph is lower because the detectors were put up and taken down not all at once. Coastal sites do not have as much activity in the first half of the year, as seen on @fig-activity-compare.
+
+```{r combined plot}
+#| echo: false
+#| label: fig-bat-calls
+#| warning: false
+#| fig-cap: Amount of bat calls
+
+ggplot(cm %>% 
+    filter(autoid != "Noise") %>% 
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "#3FA750") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity") +
+    scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
+    theme_minimal()
+
+
+```
+
+```{r activity 3 plots}
+#| echo: false
+#| label: fig-activity-compare
+#| warning: false
+#| fig-cap: Comparison of activity in different sites
+#| fig-subcap:
+#| - "Activity on coast"
+#| - "Activity around lakes"
+#| layout-ncol: 2
+#| column: page
+
+ggplot(cm %>% 
+    filter(autoid != "Noise",
+            type == "coast") %>%
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "#3FA750") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity on the coast") +
+    scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
+    theme_minimal()
+
+ggplot(cm %>% 
+    filter(autoid != "Noise",
+            type == "lake") %>%
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "#3FA750") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity around lakes") +
+    scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
+    theme_minimal()
+  
+# ggplot(cm %>% 
+#     filter(autoid != "Noise",
+#             type == "inland") %>%
+#     droplevels(), aes(x= DATE_12, color = taxa)) + 
+#   stat_count( geom = "point", size= 4, alpha = 0.90, color = "#3FA750") +
+#     ylab("Recordings per night") + xlab("Month") +
+#    ggtitle("Overall activity inland") +
+#     scale_x_date(date_breaks = "1 month", , date_labels = "%b") +
+#     theme_minimal()
+```
+
+
+## Soprano pipistrelle activity
+
+Activity has three distinct peaks, with the June one being more dominant in coastal sites. 
 
 ```{r ppyg}
 #| echo: false
@@ -404,7 +589,7 @@ ggplot(cm %>%
     theme_minimal()
 ```
 
-### Daubentons' bat activity
+## Daubentons' bat activity
 
 ```{r mdau}
 #| echo: false
@@ -422,9 +607,9 @@ ggplot(cm %>%
     theme_minimal()
 ```
 
-### Northern bat activity
+## Northern bat activity
 
-We can see a high level of avtivity throughout the recording period up until the beginning of september, when activity suddenly drops.
+We can see a high level of activity from May up until the beginning of October, when activity suddenly drops. 
 
 ```{r enil}
 #| echo: false
@@ -452,8 +637,7 @@ ggplot(cm %>%
 #| fig-subcap:
 #| - "Activity on coast"
 #| - "Activity around lakes"
-#| - "Activity inland"
-#| layout-ncol: 3
+#| layout-ncol: 2
 #| column: page
 
 
@@ -489,7 +673,74 @@ ggplot(cm %>%
 
 ```
 
-## Nathusius' pipistrelle distribution
+
+## Nathusius' pipistrelle activity
+
+
+We can see that in our sites, the activity peaks in late April and end of September.
+
+```{r pnat}
+#| echo: false
+#| label: fig-pnat
+#| warning: false
+#| fig-cap: Pnat calls
+
+ggplot(cm %>% 
+    filter(autoid == "PIPNAT") %>% 
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity 2025") +
+    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+    theme_minimal()
+```
+
+```{r pnat 3}
+#| echo: false
+#| label: fig-pnat-3
+#| warning: false
+#| fig-cap: Comparison of Pnat activity in different sites
+#| fig-subcap:
+#| - "Activity on coast"
+#| - "Activity around lakes"
+#| - "Activity inland"
+#| layout-ncol: 3
+#| column: page
+
+
+ggplot(cm %>% 
+    filter(autoid == "PIPNAT",
+            type == "coast") %>%
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity on the coast") +
+    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+    theme_minimal()
+
+ggplot(cm %>% 
+    filter(autoid == "PIPNAT",
+            type == "lake") %>%
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity around lakes") +
+    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+    theme_minimal()
+
+ggplot(cm %>% 
+    filter(autoid == "PIPNAT",
+            type == "inland") %>%
+    droplevels(), aes(x= DATE_12, color = taxa)) + 
+  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
+    ylab("Recordings per night") + xlab("Month") +
+   ggtitle("Overall activity inland") +
+    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+    theme_minimal()
+```
+
+
+### Nathusius' pipistrelle distribution
 
 On the study area, some sites had clearly higher amounts of nathusius' pipistrelles. On the @fig-pnat-map below, we can see how many 5s clips of Auto-ID Pnat we had per site.
 
@@ -501,7 +752,7 @@ On the study area, some sites had clearly higher amounts of nathusius' pipistrel
 
 tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
 
-basemap <- leaflet(width = "100%", height = "4000px") %>%
+basemap <- leaflet(width = "100%", height = "400px") %>%
   addTiles(tilesURL)
 
 basemap %>%
@@ -513,10 +764,13 @@ basemap %>%
   )
 ```
 
-The median date of activity did not differ that much based on the location, as is seen on @fig-pnat-ns below.
+The median date of activity did not differ that much based on the location, as is seen on @fig-pnat-mean below.
 
 ```{r pnat lat}
-
+#| echo: false
+#| label: fig-pnat-mean
+#| warning: false
+#| fig-cap: Median activity by site
 
 ggplot(filter(median_dates, Site != "CM-48")) +
   aes(x = `median`, y = `Site`) +
@@ -528,6 +782,17 @@ ggplot(filter(median_dates, Site != "CM-48")) +
        theme_classic() +
   theme(legend.text = element_text(face = "bold"), legend.title = element_text(face = "bold"))
 
+       
+       
+```
+
+
+
+```{r diur act pnat}
+#| include: false
+#| echo: false
+#| warning: false
+
 ggplot(cm_pnat_c) +
   aes(x = DATE_12) +
   geom_histogram(bins = 30L, fill = "#112446") +
@@ -535,14 +800,6 @@ ggplot(cm_pnat_c) +
   facet_wrap(vars(Site))
 
 
-       
-       
-       
-       
-```
-
-Diurnal activity patterns on the coast every half month from August to October.
-```{r diur act pnat}
 cm_pnat_c %>%
  filter(DATE_12 >= "2025-05-01" & DATE_12 <= "2025-07-31") %>%
  ggplot() +
@@ -550,6 +807,8 @@ cm_pnat_c %>%
   geom_histogram(bins = 30L, fill = "#112446") +
   theme_minimal() +
   facet_wrap(vars(DATE))
+
+
 cm_pnat_c %>%
   filter(DATE_12 >= "2025-05-01",
          DATE_12 <= "2025-07-30") %>%
@@ -559,43 +818,3 @@ cm_pnat_c %>%
   facet_wrap(vars(HalfMonth))
 ```
 
-
-```{r pnat lat map}
-#| echo: false
-#| eval: false
-#| label: fig-pnat-map-ns
-#| warning: false
-#| fig-cap: Timing of Pnat calls per site
-
-# data per day for recordings by site 
-pnat_day <- cm_pnat %>%
-  count(Site, DATE_12) %>%      # counts rows for each combination
-  pivot_wider(
-    names_from = DATE_12,
-    values_from = n,
-    values_fill = 0             # fill missing with 0
-  )
-
-# Reorder date columns
-date_cols <- setdiff(names(pnat_day), "Site")  # All columns except site
-
-# Convert column names to Date
-ordered_cols <- date_cols[order(as.Date(date_cols))]
-
-# Rebuild data frame with columns in date order
-pnat_day <- pnat_day %>%
-  select(Site, all_of(ordered_cols))
-
-# add columns lat and long
-pnat_day$lat <- overview_summary$latitude[match(pnat_day$Site, overview_summary$Site)]
-pnat_day$long <- overview_summary$longitude[match(pnat_day$Site, overview_summary$Site)]
-
-newdf <- pnat_day %>% select(-Site, -lat, -long)
-
-
-
-basemap %>%
-  addMinicharts(pnat_day$long, pnat_day$lat,
-    chartdata= newdf,
-    width = 45, height = 45
-  )
