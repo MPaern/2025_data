@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 data/
+images/
 cm_2025_total.csv
 Missing_dates.csv
 overview_2025.csv
