@@ -137,7 +137,7 @@ for (site in site_folders) {
 # CM26$DATE <- as.Date(CM26$DATE)
 # CM45$DATE <- as.Date(CM45$DATE)
 # 
-# CM07$`DATE-12` <- as.Date(CM07$`DATE-12`) #this did not work, they are not in date form, make sure they are before moving forward!
+# CM07$`DATE-12` <- as.Date(CM07$`DATE-12`) 
 # CM08$`DATE-12` <- as.Date(CM08$`DATE-12`)
 # CM26$`DATE-12` <- as.Date(CM26$`DATE-12`)
 # CM45$`DATE-12` <- as.Date(CM45$`DATE-12`)
@@ -566,16 +566,86 @@ overview_summary <- read.csv("overview_2025.csv")
 write.csv(missing_dates, "missing_dates_2025.csv")
 
 
-#working with cm
+#found gaps in cm total-------------------
 
-cm <- read.csv("cm_2025_total.csv")
+cmtotal <- read.csv("cm_2025_total.csv")
+cmtotal[1]<- NULL
+
+table(cmtotal$Site)
+
+str(cmtotal) 
+colSums(is.na(cmtotal))
+
+# gaps in CM-35 and CM-44
+
+df35 <- read.csv("P:/SW_CoastalMonitoring/Data_collection_2025/CM-35/WAV/KPRO_V1/New_25.09.2025/id.csv")
+df44 <- read.csv("P:/SW_CoastalMonitoring/Data_collection_2025/CM-44/WAV/KPRO_V1/New_30.09.2025/id.csv")
+
+# These SD cards have been run trough K twice, so IN FILE is the filename aka OUT FILE FS
+
+df35$Site <- "CM-35"
+df35 <- df35 %>%
+relocate(Site, .before =  INDIR)
+df44$Site <- "CM-44"
+df44 <- df44 %>%
+  relocate(Site, .before =  INDIR)
+
+str(df35)
+str(df44)
+
+# make new df-s the same format as cmtotal
+
+# same column names
+names(df35) <- names(cmtotal)
+names(df44) <- names(cmtotal)
+
+# same column classes
+df35[] <- Map(function(x, y) as(y, class(x)), cmtotal, df35)
+df44[] <- Map(function(x, y) as(y, class(x)), cmtotal, df44)
+
+# make out file fs same as infile
+
+df35$OUT_FILE_FS <- df35$IN_FILE
+df44$OUT_FILE_FS <- df44$IN_FILE
+ 
+# find what files are not in cm and add those there
+
+new_from_35 <- df35 %>%
+  anti_join(cmtotal, by = "OUT_FILE_FS")
+
+new_from_44 <- df44 %>%
+  anti_join(cmtotal, by = "OUT_FILE_FS")
+
+cmtotal <- cmtotal %>%
+  bind_rows(new_from_35, new_from_44)
+
+table(cmtotal$Site)
+
+str(cmtotal) 
+colSums(is.na(cmtotal))
+
+# replace NA in OUT_FILE_FS with IN_FILE
+
+cmtotal <- cmtotal %>% 
+  mutate(OUT_FILE_FS = coalesce(OUT_FILE_FS, IN_FILE))
+
+# write new file
+
+write.csv(cmtotal, "cm_2025_total.csv")
+
+# fix filenames in cm_2025.csv----------------------------
+
+str(cm) 
+colSums(is.na(cm))
+cm <- cm %>% 
+  mutate(filename = coalesce(filename, IN_FILE))
+
+write.csv(cm, "cm_2025.csv")
+
+
+# working with cm
+
 cm <- read.csv("cm_2025.csv")
-
 cm$DATE <- as.Date(cm$DATE)
 cm$DATE_12 <- as.Date(cm$DATE_12)
 
-
-str(cm) 
-summary(cm) 
-summary(cm$autoid) 
-colSums(is.na(cm))
