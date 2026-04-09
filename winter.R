@@ -51,19 +51,10 @@ for (site in site_folders) {
     write_csv(merged_data, file.path(site_output_folder, "all_id.csv")) }
 }
 
-
-
-
-# make cm-11 as a template for other merges
-
-cm11 <- read_csv("data/IDfiles/v2/CM-11/all_id_v2.csv")
-
-spec_template <- spec(cm11)
-
 # list files
 
 files <- list.files(
-  path = "data/IDfiles/v2/",
+  path = "data/IDfileswinter",
   pattern = "\\.csv$",   # use double backslash for regex
   recursive = TRUE,      # search subfolders
   full.names = TRUE      # return full path
@@ -73,7 +64,60 @@ files <- list.files(
 
 all <- files |>
   lapply(function(f) {
-    read_csv(f, col_types = cols(DATE = col_character(),`DATE-12` = col_character())) |>
+    read_csv(f, ) |>
       mutate(Site = basename(dirname(f)))
   }) |>
   bind_rows()
+
+# get rid of extra columns --------------- # not done yet
+
+all <- all %>%
+  mutate(id = coalesce(`MANUAL ID`, `MANUAL ID*`)) %>%
+  select(-`MANUAL ID`, -`MANUAL ID*`)
+
+short <- all %>%
+  select(id, Site, DATE)
+
+str(short)
+short$DATE <- as.Date(short$DATE, format: "%d-%m-%Y")
+str(cm) 
+summary(cm) 
+summary(cm$autoid) 
+colSums(is.na(short))
+
+short <- na.omit(short)
+
+short2<- filter(short, id!="Noise")
+
+ggplot(
+  short2 %>%
+    filter(DATE >= as.Date("2025-11-09")) %>% 
+    droplevels(),
+  aes(x = DATE, color = taxa)
+) + 
+  stat_count(geom = "point", size = 4, alpha = 0.90, color = "royalblue") +
+  ylab("Recordings per night") + 
+  xlab("Month") +
+  ggtitle("Overall amount of calls") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+  theme_minimal()+
+  theme(text = element_text(size = 20))
+
+short2$DATE <- as.Date(short2$DATE, format= "%d/%m/%Y")
+
+
+
+
+
+
+
+
+
+any(is.na(cm_2025$IN_FILE))
+
+cm_2025 <- cm_2025 %>%
+  mutate(OUT_FILE_FS = coalesce(`OUT FILE FS`, OUT.FILE.FS)) %>%
+  relocate(OUT_FILE_FS, .after = DURATION) %>%
+  select(-`OUT FILE FS`, -OUT.FILE.FS)
+
+any(is.na(cm_2025$OUT_FILE_FS))
