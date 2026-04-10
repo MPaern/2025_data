@@ -1,0 +1,483 @@
+---
+title: "Weather 2025"
+author: "Maris Pärn"
+editor: visual
+format:
+  html:
+    self-contained: true
+---
+
+## Exploration of weather data from MetNo
+
+What was the weather like in 2025? Using hourly data (only acquired for detector running times, not 24h).
+
+```{r setup}
+#| echo: false
+#| warning: false
+
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(MetBrewer)
+library(hms)
+library(zoo)
+library(circular)
+library(ggrepel)
+library(openair)
+library(suncalc)
+library(quarto)
+
+```
+
+```{r data}
+#| echo: false
+#| warning: false
+#| include: false
+
+# 2025 run din't have any missing datapoints come out with the python code. Everything I pulled is here.
+
+weather <- read.csv("WeatherData2025.csv")
+overview_summary <- read.csv("overview_2025.csv")
+
+  # fix weather
+  weather$X <- NULL
+  weather$Unnamed..0 <- NULL
+  
+  # fix overview
+  overview_summary$X <- NULL
+  overview_summary$X.1 <- NULL
+  
+  # summary(weather)
+  
+# round temperature to 2 decimal points 
+  
+weather$air_temperature_2m <- round(weather$air_temperature_2m, digits = 2)
+
+# weather-wise CM-01 has almost the same data as CM-02 so I'll group that in coastal and CM-07 and CM-41 to "lakes" befause of the more inland temperatures and weather data
+
+overview_summary <- within(overview_summary, {
+    f <- Site == "CM-01"
+    type[f] <- "coast"
+}) 
+
+overview_summary <- within(overview_summary, {
+    f <- Site == "CM-07"
+    type[f] <- "lake"
+}) 
+overview_summary <- within(overview_summary, {
+    f <- Site == "CM-41"
+    type[f] <- "lake"
+}) 
+overview_summary$f <- NULL
+
+```
+
+```{r sunset and sunrise times}
+#| echo: false
+#| warning: false
+
+# Calculate sunset and sunrise times by Site for the whole time detector was active
+
+overview_summary <- overview_summary %>%
+  mutate(
+    earliest_active = as.Date(earliest_active),
+    last_active     = as.Date(last_active)
+  )
+
+suntimes_site <- overview_summary %>%
+  rowwise() %>%
+  mutate(date = list(seq(earliest_active, last_active, by = "day"))) %>%
+  unnest(date) %>%
+  ungroup()
+
+suntimes_site <- suntimes_site[, c(1, 9, 10, 14, 15, 19)] # site, lat, lon, earliest, latest, date
+
+suntimes_site <- suntimes_site %>%
+  mutate(date = as.Date(date)) %>%
+  rename(
+    lat = latitude,
+    lon = longitude
+  )
+
+suntimes_site <- getSunlightTimes(
+  data = suntimes_site,
+  keep = c("sunrise", "sunset"),
+  tz   = "UTC"
+)
+
+suntimes_site <- suntimes_site %>%
+  rename(
+    latitude  = lat,
+    longitude = lon,
+    sunrise_utc = sunrise,
+    sunset_utc  = sunset
+  )
+
+
+suntimes_site$site <- overview_summary$Site [
+  match(
+    paste(round(suntimes_site$latitude, 5), round(suntimes_site$longitude, 5)),
+    paste(round(overview_summary$latitude, 5), round(overview_summary$longitude, 5))
+  )
+]
+
+
+# Make hourly list of times by site that detectors were active in UTC  
+
+# compare hours to the weather data: 1) note if there are weather hours missing that are in the sunrise-sunset hour list 
+                                    #2) make df with only the weather hours that I'm going to use the data from (aka sunrise + 1 hour and sunset - 1 hour weather data?)
+                                    
+# look what hours I actually have from data and which nights are full/ what is missing
+
+```
+
+```{r interpolation}
+#| echo: false
+#| warning: false
+
+
+ # for temperature 25-10-16-3 is -272 all across sites, I'll take hours before and after to change that hour.
+  
+  # create a column with datetime format
+  
+  weather <- weather %>%
+    mutate(datetime = make_datetime(
+      year = year,  
+      month = month,
+      day = day,
+      hour = hour
+    ))
+  
+  missing_time <- make_datetime(2025, 10, 16, 3)
+
+  
+  linear_vars <- c(
+    "air_temperature_2m"
+  )
+  
+weather <- weather %>%
+  mutate(
+    air_temperature_2m = if_else(
+      datetime %in% missing_time,
+      NA_real_,
+      air_temperature_2m
+    )
+  )
+
+# colSums(is.na(weather))
+  
+  weather <- weather %>%
+    group_by(name) %>%
+    arrange(datetime) %>%
+    mutate(across(
+      all_of(linear_vars),
+      ~ na.approx(., x = datetime, na.rm = FALSE)
+    ))
+
+  site_vars <- c("location_latitude", "location_longitude", "nearest_latitude", "nearest_longitude")
+  
+  # add type to weather 
+  
+  weather$type <- overview_summary$type[match(weather$name, overview_summary$Site)]
+  
+  
+  # --------check if all necessary timepoints are present based on cm_all. This dataset is still in UTC, should I have the other one also in UTC or change this into UTC+2??---
+
+```
+
+### Temperature
+
+Here we'll see what the temperatures are like around the sites. The sites are arranged from north to south and on @fig-temperature-overview we can see that the mean temperatures (dark lines) are similar throughout the study area, varying more in the first half of the year our detectors were up. To further highlight some outliers, we see on @fig-temperature-mean that locations that have lower mean temperatures have higher temperature deviations throughout the year.
+
+```{r}
+#| echo: false
+#| label: fig-temperature-overview
+#| warning: false
+#| fig-cap: Temperature differences between sites
+#| fig-subcap:
+#| - "From March to the middle of July"
+#| - "From July to October"
+#| layout-ncol: 2
+#| column: page
+
+
+weather_ns <- weather %>%
+    arrange(desc(location_latitude)) %>%
+    mutate(
+      name = factor(name, levels = unique(name))
+    )
+  
+ggplot(subset(weather_ns, datetime < as.Date("2025-07-14")), aes(x = reorder(name, -location_latitude), y = air_temperature_2m)) +
+    geom_boxplot(outlier.alpha = 0.3) +
+    theme_bw() +
+    labs(x = "Site from N to S", y = "Temperature (°C)") +
+  #  scale_x_date(limit=c(as.Date("2025-03-11"),as.Date("2025-07-14"))) +
+    theme(axis.text.x = element_text(angle = 90))
+
+ggplot(subset(weather_ns, datetime > as.Date("2025-07-14")), aes(x = reorder(name, -location_latitude), y = air_temperature_2m)) +
+    geom_boxplot(outlier.alpha = 0.3) +
+    theme_bw() +
+    labs(x = "Site from N to S", y = "Temperature (°C)") +
+  #  scale_x_date(limit=c(as.Date("2025-03-11"),as.Date("2025-07-14"))) +
+    theme(axis.text.x = element_text(angle = 90))
+
+```
+
+```{r}
+#| echo: false
+#| label: fig-temperature-mean
+#| warning: false
+#| fig-cap: Mean temperature at the sites
+
+ temp_summary <- weather %>%
+    group_by(name) %>%
+    summarise(
+      mean_temp = mean(air_temperature_2m, na.rm = TRUE),
+      sd_temp   = sd(air_temperature_2m, na.rm = TRUE)
+    )
+  
+  temp_summary$type <- overview_summary$type[match(temp_summary$name, overview_summary$Site)]
+  
+ggplot(temp_summary, aes(mean_temp, sd_temp, label = name)) +
+  geom_point(aes(colour = type)) +
+  geom_text_repel(size = 3, max.overlaps = 50) +
+  theme_classic() +
+  labs(
+    x = "Mean temperature",
+    y = "Temperature SD"
+  )
+
+
+```
+
+Throughout the recording season, we can see on @fig-temperature-trend that the temperature takes some time to rise before it starts dropping towards the autumn.
+
+```{r}
+#| echo: false
+#| label: fig-temperature-trend
+#| warning: false
+#| fig-cap: Temperature trend throughout 2024 season
+
+ggplot(weather_ns) +
+ aes(x = datetime, y = air_temperature_2m) +
+ geom_line(colour = "#3A69BE") +
+ labs(x = "Date", y = "Temperature (°C)", title = "Temperature trend over 2024 season") +
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
+
+
+```
+
+### Wind
+
+The Southwestern part of Norway is known as a very windy area, the maximum and mean wind speed graphs support that claim with coastal sites showing higher mean and max wind speeds.
+
+```{r}
+#| echo: false
+#| label: fig-max-wind
+#| warning: false
+#| fig-cap: Maximum wind speed on the sites
+
+
+  wind_summary <- weather_ns %>%
+    group_by(name) %>%
+    summarise(
+      max_wind = max(wind_speed_10m, na.rm = TRUE),
+      p95_wind = quantile(wind_speed_10m, 0.95, na.rm = TRUE)
+    )
+  
+  wind_summary$type <- overview_summary$type[match(wind_summary$name, overview_summary$Site)]
+  
+  ggplot(wind_summary, aes(x = reorder(name, -max_wind), y = max_wind)) +
+    geom_col(aes(fill= type)) +
+    theme_classic() +
+    labs(x = "Location",y = "Max wind speed (m/s)") +
+    theme(axis.text.x = element_text(angle = 90))
+
+```
+
+```{r}
+#| echo: false
+#| label: fig-mean-wind
+#| warning: false
+#| fig-cap: Mean wind speed on the sites
+
+mean_wind <- weather %>%
+    group_by(name) %>%
+    summarise(
+      mean_wind = mean(wind_speed_10m, na.rm = TRUE)
+    )
+
+wind_summary$mean_wind <- mean_wind$mean_wind[match(wind_summary$name, mean_wind$name)]
+  
+
+ ggplot(wind_summary, aes(x = reorder(name, -mean_wind), y = mean_wind)) +
+    geom_col(aes(fill= type)) +
+    theme_classic() +
+    labs(x = "Location", y = "Mean wind speed (m/s)") +
+    theme(axis.text.x = element_text(angle = 90))
+ 
+```
+
+When we look at the wind direction in the whole research area, we can see the difference in the summer months and autumn, as the wind changes direction towards autumn.
+
+```{r windrose}
+#| echo: false
+#| label: fig-wind-direction
+#| warning: false
+#| fig-cap: Comparison of wind direction by month
+#| fig-subcap:
+#| - "Wind direction in March-May"
+#| - "Wind direction in June-August"
+#| - "Wind direction in September-October"
+#| column: screen-inset-shaded
+#| layout-nrow: 1
+
+#  windRose(
+#    weather,
+#    ws = "wind_speed_10m",
+#    wd = "wind_direction_10m",
+#    facet = "name",
+#    ncol = 5
+#  )
+  
+  windRose(
+    subset(weather, month %in% c(3,4,5)),
+    ws = "wind_speed_10m",
+    wd = "wind_direction_10m",
+    facet = "name",
+    ncol = 3
+  )
+  
+   windRose(
+    subset(weather, month %in% c(6,7,8)),
+    ws = "wind_speed_10m",
+    wd = "wind_direction_10m",
+    facet = "name",
+    ncol = 3
+  )
+  
+  windRose(
+    subset(weather, month %in% c(9, 10)),
+    ws = "wind_speed_10m",
+    wd = "wind_direction_10m",
+    facet = "name",
+    ncol = 3
+  )
+
+
+```
+
+### Precipitation
+
+When we look at the precipitation during the detector recording period, we can see that about 10% of the recording hours, it was raining more than 0,1 mm per hour. On @fig-precipitation-fraction we can see a difference in the southern locations and other locations in the study area, with the south (Lista peninsula) having the least amount of rainfall hours just like in 2024. 
+
+```{r}
+#| echo: false
+#| label: fig-precipitation-fraction
+#| warning: false
+#| fig-cap: The fraction of wet hours during the recording period in 2024
+
+
+# put a threshold for rain (dataset has a lot of minuscle values)
+
+rain_threshold <- 0.1
+
+weather_ns <- weather_ns %>%
+  mutate(
+    rain_mm = if_else(
+      precipitation_amount >= rain_threshold,
+      precipitation_amount,
+      0
+    ),
+    rain = precipitation_amount >= rain_threshold
+  )
+
+rain_freq <- weather_ns %>%
+  group_by(name) %>%
+  summarise(
+    wet_frac = mean(rain, na.rm = TRUE)
+  )
+
+rain_freq$latitude <- overview_summary$latitude[match(rain_freq$name, overview_summary$Site)]
+
+
+ggplot(rain_freq, aes(x = reorder(name, -latitude), wet_frac)) +
+  geom_col() +
+  theme_bw() +
+  labs(x= "Location", y = "Fraction of wet hours (≥ 0.1 mm)") +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+
+```
+When we look at how much it rained nightly in the study area on @fig-precipitation, then we can see some periods without rain, but also a lot of long rainy periods.
+
+
+```{r}
+#| echo: false
+#| label: fig-precipitation
+#| warning: false
+#| fig-cap: Overall rainfall in 2025
+
+weather_daily <- weather_ns %>%
+  mutate(date = as.Date(datetime)) %>%
+  group_by(name, date, type) %>%
+  summarise(
+    precipitation_amount = sum(precipitation_amount, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+ggplot(weather_daily) +
+ aes(x = date, y = precipitation_amount, colour = type) +
+ geom_point() +
+ scale_color_hue(direction = 1) +
+ labs(x = "Date", y = "Precipitation (mm)", title = "Amount of rainfall in 2025 field season", 
+ color = "Category") +
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
+
+
+```
+
+### Other parameters
+
+There is also data about cloud area fraction and air pressure for the study area. From total cloud coverage by study sites, on @fig-cloud we can see that northern sites seem to have more cloud coverage than the southern sites.
+
+```{r}
+#| echo: false
+#| label: fig-cloud
+#| warning: false
+#| fig-cap: Cloud coverage change in 2025
+
+  
+ggplot(weather_ns, aes(x = reorder(name, -location_latitude), y = cloud_area_fraction)) +
+  stat_summary(fun = mean, geom = "point") +
+  theme_bw() +
+  labs(x = "Site from N to S", y = "Mean cloud coverage") +
+  theme(axis.text.x = element_text(angle = 90))
+  
+
+
+```
+
+Air pressure change is constant in the region, with more amplitude further in the season.
+
+```{r}
+#| echo: false
+#| label: fig-air
+#| warning: false
+#| fig-cap: Air pressure change in 2025
+
+ggplot(weather_ns) +
+ aes(x = datetime, y = air_pressure_at_sea_level) +
+ geom_line(colour = "#3A69BE") +
+ labs(x = "Date", y = "Air pressure at sea level (hPa)", title = "Air pressure change over all the sites ") +
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
+
+
+```
