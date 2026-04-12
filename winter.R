@@ -1,6 +1,6 @@
 # winter data 2025-2026
 
-#version 2 of 2024 data--------
+#2025 winter data setup--------
 library(tidyverse)
 library(ggplot2)
 library(lubridate)
@@ -72,22 +72,79 @@ all <- files |>
 # get rid of extra columns --------------- # not done yet
 
 all <- all %>%
-  mutate(id = coalesce(`MANUAL ID`, `MANUAL ID*`)) %>%
-  select(-`MANUAL ID`, -`MANUAL ID*`)
+  mutate(
+    id = coalesce(`MANUAL ID`, `MANUAL ID*`),
+    INDIR = coalesce(INDIR, INDIR...1, INDIR...45)
+  ) %>%
+  select(
+    -`MANUAL ID`, -`MANUAL ID*`,
+    -INDIR...1, -INDIR...45
+  )
 
-short <- all %>%
-  select(id, Site, DATE)
+all$INDIR_new <- paste(all[[1]], all[[44]])
 
-str(short)
-short$DATE <- as.Date(short$DATE, format: "%d-%m-%Y")
-str(cm) 
-summary(cm) 
-summary(cm$autoid) 
-colSums(is.na(short))
+colSums(is.na(all))
 
-short <- na.omit(short)
+all[1] <- NULL
+all[43] <- NULL
 
-short2<- filter(short, id!="Noise")
+all <- all %>%
+  mutate(
+    TIME = coalesce(TIME, `TIME*`),
+    autoid = coalesce("AUTO ID*", "AUTO ID")
+  ) %>%
+  select(
+    -`TIME*`,
+    -"AUTO ID*", -"AUTO ID"
+  ) %>%
+  rename(
+    INDIR = "INDIR_new",
+    filename = "OUT FILE FS"
+  ) %>%
+  relocate(INDIR, .before = OUTDIR)
+
+all <- all %>% 
+  mutate(filename = coalesce(filename, "IN FILE"))
+
+write.csv(all, "cm_winter_total.csv")
+
+# smaller dataset to work with---------------------------------
+
+cm <- all %>% 
+  rename(
+    IN_FILE = "IN FILE",
+    DATE_12 = "DATE-12",
+    TIME_12 = "TIME-12",
+    HOUR_12 = "HOUR-12",
+    MATCH_RATIO = "MATCH RATIO",
+    ALTERNATE_1 = "ALTERNATE 1",
+    ALTERNATE_2 = "ALTERNATE 2") %>% 
+  mutate(autoid = factor(autoid),
+         DATE_12 = as.Date(DATE_12, format = "%d/%m/%Y"),
+         DATE = as.Date(DATE, format = "%d/%m/%Y")) %>% 
+  dplyr::select(OUTDIR, FOLDER, IN_FILE, filename, DURATION, 
+                DATE, TIME, HOUR,
+                DATE_12, TIME_12, HOUR_12,
+                autoid, PULSES, MATCH_RATIO, ALTERNATE_1, ALTERNATE_2, Site, id
+  )
+
+write.csv(cm, "cm_winter.csv")
+
+# overview of data preparing the dataset------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+# plots----------------
 
 ggplot(
   short2 %>%
@@ -103,21 +160,3 @@ ggplot(
   theme_minimal()+
   theme(text = element_text(size = 20))
 
-short2$DATE <- as.Date(short2$DATE, format= "%d/%m/%Y")
-
-
-
-
-
-
-
-
-
-any(is.na(cm_2025$IN_FILE))
-
-cm_2025 <- cm_2025 %>%
-  mutate(OUT_FILE_FS = coalesce(`OUT FILE FS`, OUT.FILE.FS)) %>%
-  relocate(OUT_FILE_FS, .after = DURATION) %>%
-  select(-`OUT FILE FS`, -OUT.FILE.FS)
-
-any(is.na(cm_2025$OUT_FILE_FS))
