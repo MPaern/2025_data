@@ -6,6 +6,8 @@ library(ggplot2)
 library(lubridate)
 library(dplyr)
 library(fs)
+library(esquisse)
+library(hms)
 
 # make directories of all the sites and add the merged id files so when there is a problem with one of the sites, it can be fixed on it's own -----------
 
@@ -71,17 +73,12 @@ all <- files |>
 
 # get rid of extra columns --------------- # not done yet
 
-all <- all %>%
-  mutate(
-    id = coalesce(`MANUAL ID`, `MANUAL ID*`),
-    INDIR = coalesce(INDIR, INDIR...1, INDIR...45)
-  ) %>%
-  select(
-    -`MANUAL ID`, -`MANUAL ID*`,
-    -INDIR...1, -INDIR...45
-  )
+all <- all %>% 
+  mutate( id = coalesce(`MANUAL ID`, `MANUAL ID*`), 
+          INDIR = coalesce(INDIR, INDIR...1, INDIR...45) ) %>% 
+  select( -`MANUAL ID`, -`MANUAL ID*`, -INDIR...1, -INDIR...45 )
 
-all$INDIR_new <- paste(all[[1]], all[[44]])
+all$INDIR_new <- coalesce(all[[1]], all[[44]])
 
 colSums(is.na(all))
 
@@ -91,22 +88,38 @@ all[43] <- NULL
 all <- all %>%
   mutate(
     TIME = coalesce(TIME, `TIME*`),
-    autoid = coalesce("AUTO ID*", "AUTO ID")
+    autoid = coalesce(`AUTO ID*`, `AUTO ID`)
   ) %>%
   select(
     -`TIME*`,
-    -"AUTO ID*", -"AUTO ID"
+    -`AUTO ID*`, -`AUTO ID`
   ) %>%
   rename(
-    INDIR = "INDIR_new",
-    filename = "OUT FILE FS"
+    INDIR = INDIR_new,
+    filename = `OUT FILE FS`
   ) %>%
   relocate(INDIR, .before = OUTDIR)
 
 all <- all %>% 
-  mutate(filename = coalesce(filename, "IN FILE"))
+  mutate(filename = coalesce(filename, `IN FILE`))
+
+# check file
+
+colSums(is.na(all))
+unique(all$INDIR)
+unique(all$OUTDIR)
+unique(all$autoid)
+unique(all$id)
+unique(all$`DATE-12`)
+
+# fix mistakes
+
+all$INDIR[all$INDIR == "P:\\SW_CoastalMonitoring\\Data_collection_winter\\CM-06\\DATA"] <- "P:\\SW_CoastalMonitoring\\Data_collection_winter\\CM-06\\DATA\\25.11.2025_CM-06"
+all$autoid[all$autoid == "PIPPIP"] <- "PIPPYG"
 
 write.csv(all, "cm_winter_total.csv")
+
+# all <- read.csv("cm_winter_total.csv")
 
 # smaller dataset to work with---------------------------------
 
@@ -128,27 +141,50 @@ cm <- all %>%
                 autoid, PULSES, MATCH_RATIO, ALTERNATE_1, ALTERNATE_2, Site, id
   )
 
+colSums(is.na(cm))
+unique(cm$OUTDIR)
+unique(cm$autoid)
+unique(cm$id)
+unique(cm$`DATE_12`)
+
+# fix mistakes
+
+cm$id[cm$id == "PIPNAT"] <- "PNAT"
+
 write.csv(cm, "cm_winter.csv")
 
-# overview of data preparing the dataset------------------------------------
+# manual id-s ------------------------------------
 
+cm <- read.csv("cm_winter.csv")
 
+cm[1]<- NULL
 
+unique(cm$id)
 
+cm <- cm %>%
+  mutate(manual = id) %>%
+  separate_rows(manual, sep = "_")
 
+unique(cm$manual)
 
+# new column with Noise as NA value
 
-
-
-
-
+cm$manualwnoise <- cm$manual
+cm$manualwnoise[is.na(cm$manualwnoise)] <- "Noise"
 
 
 # plots----------------
 
+cm$DATE <- as.Date(cm$DATE)
+cm$DATE_12 <- as.Date(cm$DATE_12)
+
+cm$TIME <- as_hms(cm$TIME)
+cm$TIME_12 <- as_hms(cm$TIME_12)
+
+
 ggplot(
-  short2 %>%
-    filter(DATE >= as.Date("2025-11-09")) %>% 
+  cm %>%
+    filter(manualwnoise != "Noise") %>% 
     droplevels(),
   aes(x = DATE, color = taxa)
 ) + 
@@ -160,3 +196,6 @@ ggplot(
   theme_minimal()+
   theme(text = element_text(size = 20))
 
+
+
+esquisser()
