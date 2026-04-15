@@ -186,7 +186,7 @@ ggplot(
   cm %>%
     filter(manualwnoise != "Noise") %>% 
     droplevels(),
-  aes(x = DATE, color = taxa)
+  aes(x = DATE_12, color = taxa)
 ) + 
   stat_count(geom = "point", size = 4, alpha = 0.90, color = "royalblue") +
   ylab("Recordings per night") + 
@@ -196,6 +196,170 @@ ggplot(
   theme_minimal()+
   theme(text = element_text(size = 20))
 
+ggplot(cm %>% filter(manualwnoise != "Noise"), aes(x = DATE_12)) + 
+  stat_count(geom = "point", size = 4, alpha = 0.7, color = "royalblue4") +
+  ylab("Number of bat passes per night") + xlab("Month") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+  theme_minimal()
 
+# activity levels per site
+ggplot(cm) +
+  aes(x = HOUR_12) +
+  geom_histogram(bins = 30L, fill = "royalblue4") +
+  theme_minimal() +
+  facet_wrap(vars(Site))
 
 esquisser()
+
+# species 
+
+cm %>%
+  filter(!(manualwnoise %in% c("Noise", "PISP", "NYCT", "MYSP"))) %>%
+  count(DATE_12, manualwnoise) %>%
+  ggplot() +
+  aes(x = DATE_12, y = manualwnoise, size = n) +
+  geom_point(colour = "green4", alpha = 0.8) +
+  labs(
+    x = "Month",
+    y = "Species",
+    title = "Winter bat calls 2025/2026"
+  ) +
+  scale_size_continuous(range = c(4, 12))+
+  theme_linedraw()+
+  theme(
+    plot.title = element_text(size = 20L),
+    axis.title.y = element_text(size = 16L),
+    axis.title.x = element_text(size = 16L)
+  )
+
+# sites 
+
+cm %>%
+  filter(!(manualwnoise %in% c("Noise", "PISP", "NYCT", "MYSP"))) %>%
+  count(DATE_12, manualwnoise, Site) %>%
+  ggplot(aes(x = DATE_12, y = manualwnoise, size = n)) +
+  geom_point(colour= "blue3", alpha = 0.5) +
+  facet_wrap(~ Site) +
+  labs(
+    x = "Month",
+    y = "Species",
+    title = "Winter bat calls 2025/2026"
+  ) +
+  scale_size_continuous(range = c(4, 12)) +
+  theme_linedraw() +
+  theme(
+    plot.title = element_text(size = 20),
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16)
+  )
+
+
+# match ratio calculations------------------
+# pnat
+
+pnat_data <- cm %>%
+  filter(autoid == "PIPNAT") %>%
+  mutate(
+    MATCH_RATIO = as.numeric(MATCH_RATIO),
+    correct = ifelse(manualwnoise == "PNAT", 1, 0)) %>%
+  filter(!is.na(MATCH_RATIO))
+
+
+pnat_glm <- glm(
+  correct ~ MATCH_RATIO,
+  family = binomial,
+  data = pnat_data)
+
+summary(pnat_glm)
+
+# Create values
+x <- seq(0, 1, length.out = 100)
+
+# Logistic function
+y <- 1 / (1 + exp(-(-3.2591 + 5.9644 * x)))
+
+# Plot
+plot(x, y, type = "l", lwd = 2,
+     xlab = "MATCH_RATIO",
+     ylab = "Predicted Probability (correct)",
+     main = "Logistic Regression Curve")
+
+# calculates the match ratio cut-off by inverting the logistic regression
+get_cutoff <- function(p, model) {
+  beta0 <- coef(model)[1]
+  beta1 <- coef(model)[2]
+  (log(p / (1 - p)) - beta0) / beta1
+}
+
+# target probabilities for which we want to know the match ratio
+target_probs <- c(0.5, 0.6, 0.7, 0.8, 0.9)
+
+# create table with probability column and fill with values from get-cutoff + lost and retained calls + percentage
+loss_table <- data.frame(Probability = target_probs) %>%
+  mutate(
+    Cutoff_Ratio = pmin(
+      sapply(Probability, get_cutoff, model = pnat_glm),
+      1),
+    Calls_retained = sapply(Cutoff_Ratio, function(c) 
+      sum(pnat_data$MATCH_RATIO >= c)),
+    Calls_lost = sapply(Cutoff_Ratio, function(c) 
+      sum(pnat_data$MATCH_RATIO < c)),
+    Percent_loss = round(
+      (Calls_lost / nrow(pnat_data)) * 100, 2 ) )
+
+print(loss_table)
+
+#enil
+enil_data <- cm %>%
+  filter(autoid == "EPTNIL") %>%
+  mutate(
+    MATCH_RATIO = as.numeric(MATCH_RATIO),
+    correct = ifelse(manualwnoise == "ENIL", 1, 0)) %>%
+  filter(!is.na(MATCH_RATIO))
+
+
+enil_glm <- glm(
+  correct ~ MATCH_RATIO,
+  family = binomial,
+  data = enil_data)
+
+summary(enil_glm)
+
+#ppyg
+ppyg_data <- cm %>%
+  filter(autoid == "PIPPYG") %>%
+  mutate(
+    MATCH_RATIO = as.numeric(MATCH_RATIO),
+    correct = ifelse(manualwnoise == "PPYG", 1, 0)) %>%
+  filter(!is.na(MATCH_RATIO))
+
+
+ppyg_glm <- glm(
+  correct ~ MATCH_RATIO,
+  family = binomial,
+  data = ppyg_data)
+
+summary(ppyg_glm)
+
+# from some point in the year, the match ratio for Enil is not reliable at all and should be basically discarded
+
+# activity minutes and further data handling----------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
