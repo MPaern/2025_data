@@ -161,16 +161,26 @@ cm[1]<- NULL
 
 unique(cm$id)
 
+# fix enil
+
+cm <- cm %>%
+  mutate(id = if_else(DATE == "2026-01-05" & id == "ENIL",
+                      "Noise",
+                      id))
+
 cm <- cm %>%
   mutate(manual = id) %>%
   separate_rows(manual, sep = "_")
 
 unique(cm$manual)
 
+
+
 # new column with Noise as NA value
 
 cm$manualwnoise <- cm$manual
 cm$manualwnoise[is.na(cm$manualwnoise)] <- "Noise"
+
 
 
 # plots----------------
