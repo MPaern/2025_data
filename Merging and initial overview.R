@@ -7,9 +7,9 @@
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
-#library(suncalc)
+library(suncalc)
 #library(suntools)
-#library(lubridate)
+library(lubridate)
 #library(readr)
 #library(esquisse)
 #library(MetBrewer)
@@ -648,4 +648,107 @@ write.csv(cm, "cm_2025.csv")
 cm <- read.csv("cm_2025.csv")
 cm$DATE <- as.Date(cm$DATE)
 cm$DATE_12 <- as.Date(cm$DATE_12)
+
+# date and time as chr
+
+cm <- cm %>%
+  mutate(
+    dt_str = paste(DATE, TIME)
+  )
+
+# make column for wrong daylight saving times
+
+cm <- cm %>%
+  mutate(
+    dst_gap = DATE == "2025-03-30" &
+      TIME >= "02:00:00" &
+      TIME <  "03:00:00"
+  )
+
+
+# fix gap 
+
+cm <- cm %>%
+  mutate(
+    dt_fixed = if_else(
+      dst_gap,
+      paste(DATE, sprintf("%02d:%s",
+                          as.integer(substr(TIME, 1, 2)) + 1,
+                          substr(TIME, 4, 5))),
+      paste(DATE, TIME)
+    )
+  )
+
+# fix dst to real datetime, now all the sites with wrong start with 03:00-
+
+cm <- cm %>%
+  mutate(
+    dt_str_fixed = if_else(
+      dst_gap,
+      paste(
+        DATE,
+        sprintf(
+          "%02d:%s",
+          as.integer(substr(TIME, 1, 2)) + 1,
+          substr(TIME, 4, 8)
+        )
+      ),
+      dt_str
+    )
+  )
+
+# make datetimes column for all the dates 
+
+cm <- cm %>%
+  mutate(
+    datetime_v1 = ymd_hms(dt_str_fixed, tz = "Europe/Oslo")
+  )
+
+# add an hour to all days detectors were out after dst before maintenance
+
+group1 <- c("CM-06", "CM-17", "CM-20", "CM-18", "CM-04")
+group2 <- c("CM-03", "CM-22", "CM-27", "CM-35", "CM-25", "CM-51", "CM-28", "CM-52", "CM-56", "CM-05")
+group3 <- c("CM-26", "CM-49")
+
+end1 <- as.POSIXct("2025-04-22 16:15:00", tz = "Europe/Oslo")
+end2 <- as.POSIXct("2025-04-25 17:57:00", tz = "Europe/Oslo")
+end3 <- as.POSIXct("2025-04-26 11:19:00", tz = "Europe/Oslo")
+
+cm <- cm %>%
+  mutate(
+    datetime_new = case_when(
+      
+      Site %in% group1 &
+        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime <= end1 &
+        !dst_gap ~ datetime + hours(1),
+      
+      Site %in% group2 &
+        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime <= end2 &
+        !dst_gap ~ datetime + hours(1),
+      
+      Site %in% group3 &
+        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime <= end3 &
+        !dst_gap ~ datetime + hours(1),
+      
+      TRUE ~ datetime
+    )
+  )
+
+# make datetime 12 column
+
+cm <- cm %>%
+  mutate(
+    datetime_new_12 = datetime - hours(12)
+  )
+
+
+# can I check somehow if what I did was correct?
+
+
+
+
+
 
