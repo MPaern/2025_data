@@ -701,7 +701,7 @@ cm <- cm %>%
 
 cm <- cm %>%
   mutate(
-    datetime = ymd_hms(dt_str_fixed, tz = "Europe/Oslo")
+    datetime_tz = ymd_hms(dt_str_fixed, tz = "Europe/Oslo")
   )
 
 # add an hour to all days detectors were out after dst before maintenance
@@ -716,24 +716,24 @@ end3 <- as.POSIXct("2025-04-26 11:19:00", tz = "Europe/Oslo")
 
 cm <- cm %>%
   mutate(
-    datetime_new = case_when(
+    datetime = case_when(
       
       Site %in% group1 &
-        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
-        datetime <= end1 &
-        !dst_gap ~ datetime + hours(1),
+        datetime_tz >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime_tz <= end1 &
+        !dst_gap ~ datetime_tz + hours(1),
       
       Site %in% group2 &
-        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
-        datetime <= end2 &
-        !dst_gap ~ datetime + hours(1),
+        datetime_tz >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime_tz <= end2 &
+        !dst_gap ~ datetime_tz + hours(1),
       
       Site %in% group3 &
-        datetime >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
-        datetime <= end3 &
-        !dst_gap ~ datetime + hours(1),
+        datetime_tz >= as.POSIXct("2025-03-30 03:00:00", tz = "Europe/Oslo") &
+        datetime_tz <= end3 &
+        !dst_gap ~ datetime_tz + hours(1),
       
-      TRUE ~ datetime
+      TRUE ~ datetime_tz
     )
   )
 
@@ -741,14 +741,14 @@ cm <- cm %>%
 
 cm <- cm %>%
   mutate(
-    datetime_new_12 = datetime - hours(12)
+    datetime_12 = datetime - hours(12)
   )
 
 
-# can I check somehow if what I did was correct?
+# clean 2025 data and upload it again, remove extra columns. 
 
+cm[1]<- NULL
 
-
-
-
+cm_new <- subset(cm, select = -c(dt_str, dst_gap, dt_fixed, dt_str_fixed, datetime_tz))
+write.csv(cm_new, "cm_2025.csv")
 
