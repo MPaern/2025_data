@@ -701,7 +701,7 @@ cm <- cm %>%
 
 cm <- cm %>%
   mutate(
-    datetime_v1 = ymd_hms(dt_str_fixed, tz = "Europe/Oslo")
+    datetime = ymd_hms(dt_str_fixed, tz = "Europe/Oslo")
   )
 
 # add an hour to all days detectors were out after dst before maintenance
