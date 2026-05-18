@@ -752,3 +752,7 @@ cm[1]<- NULL
 cm_new <- subset(cm, select = -c(dt_str, dst_gap, dt_fixed, dt_str_fixed, datetime_tz))
 write.csv(cm_new, "cm_2025.csv")
 
+
+# working with data
+
+cm <- read.csv("cm_2025.csv")
