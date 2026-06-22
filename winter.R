@@ -15,7 +15,7 @@ library(hms)
 source_dir <- "P:/SW_CoastalMonitoring/Data_collection_winter"
 destination_dir <- "data/IDfileswinter"
 
-# list of all 50 site folders in source_dir
+# list of all site folders in source_dir
 site_folders <- list.dirs(source_dir, recursive = FALSE)
 
 # Find id.csv files in every site and merge them into one all_id.csv file
@@ -71,7 +71,7 @@ all <- files |>
   }) |>
   bind_rows()
 
-# get rid of extra columns --------------- # not done yet
+# get rid of extra columns ---------------
 
 all <- all %>% 
   mutate( id = coalesce(`MANUAL ID`, `MANUAL ID*`), 
@@ -120,6 +120,10 @@ all$autoid[all$autoid == "PIPPIP"] <- "PIPPYG"
 write.csv(all, "cm_winter_total.csv")
 
 # all <- read.csv("cm_winter_total.csv")
+
+# add csv-s for 6 sites from spring
+
+
 
 # smaller dataset to work with---------------------------------
 

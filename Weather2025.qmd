@@ -55,7 +55,7 @@ overview_summary <- read.csv("overview_2025.csv")
   
 weather$air_temperature_2m <- round(weather$air_temperature_2m, digits = 2)
 
-# weather-wise CM-01 has almost the same data as CM-02 so I'll group that in coastal and CM-07 and CM-41 to "lakes" befause of the more inland temperatures and weather data
+# weather-wise CM-01 has almost the same data as CM-02 so I'll group that in coastal and CM-07 and CM-41 to "lakes" because of the more inland temperatures and weather data
 
 overview_summary <- within(overview_summary, {
     f <- Site == "CM-01"
@@ -126,10 +126,43 @@ suntimes_site$site <- overview_summary$Site [
 
 # Make hourly list of times by site that detectors were active in UTC  
 
-# compare hours to the weather data: 1) note if there are weather hours missing that are in the sunrise-sunset hour list 
-                                    #2) make df with only the weather hours that I'm going to use the data from (aka sunrise + 1 hour and sunset - 1 hour weather data?)
-                                    
-# look what hours I actually have from data and which nights are full/ what is missing
+cm <- read.csv("cm_2025.csv")
+cm[1]<- NULL
+# cm[nchar(cm$datetime) < 19, ]
+cm$datetime <- as.POSIXct(cm$datetime)
+
+# datetime lenght 10 needs time 00:00:00
+
+cm$datetime <- ymd_hms(
+  ifelse(nchar(cm$datetime) == 10,
+         paste0(cm$datetime, " 00:00:00"),
+         cm$datetime)
+)
+
+
+# compare hours to the weather data
+# Fix timezone
+# then convert to true UTC to match weather
+cm_times <- cm |>
+  mutate(
+    dt_utc = with_tz(force_tz(datetime, "Europe/Oslo"), "UTC"),
+    year  = year(dt_utc),
+    month = month(dt_utc),
+    day   = day(dt_utc),
+    hour  = hour(dt_utc)
+  )
+
+
+# Find cm rows with no matching weather record
+missing <- cm_times |>
+  anti_join(weather, by = c("Site" = "name", "year", "month", "day", "hour"))
+
+nrow(missing)       # how many cm rows lack weather
+missing |> count(Site)  # broken down by site
+
+# there are some hours missing for the data, but not between sunset-sunrise  
+# will fix the data by downloading more weather data 
+
 
 ```
 
@@ -372,7 +405,7 @@ When we look at the wind direction in the whole research area, we can see the di
 
 ### Precipitation
 
-When we look at the precipitation during the detector recording period, we can see that about 10% of the recording hours, it was raining more than 0,1 mm per hour. On @fig-precipitation-fraction we can see a difference in the southern locations and other locations in the study area, with the south (Lista peninsula) having the least amount of rainfall hours just like in 2024. 
+When we look at the precipitation during the detector recording period, we can see that about 10% of the recording hours, it was raining more than 0,1 mm per hour. On @fig-precipitation-fraction we can see a difference in the southern locations and other locations in the study area, with the south (Lista peninsula) having the least amount of rainfall hours just like in 2024.
 
 ```{r}
 #| echo: false
@@ -413,8 +446,8 @@ ggplot(rain_freq, aes(x = reorder(name, -latitude), wet_frac)) +
 
 
 ```
-When we look at how much it rained nightly in the study area on @fig-precipitation, then we can see some periods without rain, but also a lot of long rainy periods.
 
+When we look at how much it rained nightly in the study area on @fig-precipitation, then we can see some periods without rain, but also a lot of long rainy periods.
 
 ```{r}
 #| echo: false
