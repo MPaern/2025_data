@@ -123,11 +123,49 @@ write.csv(all, "cm_winter_total.csv")
 
 # add csv-s for 6 sites from spring
 
+cm_winter_total <- read_csv("cm_winter_total.csv")
+cm_winter_total[1] <- NULL
 
+folders <- list.dirs("D:\\Manual", recursive = FALSE)
+
+new_winter <- lapply(folders, function(folder) {
+  read_csv(file.path(folder, "id.csv")) %>%
+    mutate(Site = basename(folder))
+}) %>%
+  bind_rows()
+
+cm_winter_total <- bind_rows(cm_winter_total, new_winter)
+
+# get rid of extra columns
+
+cm_winter_total <- cm_winter_total %>% 
+  mutate( id = coalesce(`MANUAL ID`, id), 
+          autoid = coalesce(autoid, `AUTO ID*`),
+          filename = coalesce (filename, `OUT FILE FS`)) %>% 
+  select( -`MANUAL ID`, -`AUTO ID*`, -`OUT FILE FS` )
+
+# check file
+
+colSums(is.na(cm_winter_total))
+
+#missing filenames
+
+cm_winter_total <- cm_winter_total %>% 
+  mutate(filename = coalesce(filename, `IN FILE`))
+
+unique(cm_winter_total$INDIR)
+unique(cm_winter_total$OUTDIR)
+unique(cm_winter_total$autoid)
+unique(cm_winter_total$id)
+unique(cm_winter_total$`DATE-12`)
+
+# write new full file
+
+write.csv(cm_winter_total, "cm_winter_total.csv")
 
 # smaller dataset to work with---------------------------------
 
-cm <- all %>% 
+cm <- cm_winter_total %>% 
   rename(
     IN_FILE = "IN FILE",
     DATE_12 = "DATE-12",
