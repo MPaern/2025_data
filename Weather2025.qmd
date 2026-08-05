@@ -36,9 +36,18 @@ library(quarto)
 #| warning: false
 #| include: false
 
-# 2025 run din't have any missing datapoints come out with the python code. Everything I pulled is here.
+# 2025 run didn't have any missing datapoints come out with the python code. Everything I pulled is here.
 
-weather <- read.csv("WeatherData2025.csv")
+# summer2026 adding datapoints I didn't originally pull to the WeatherData from 2025
+
+weather1 <- read.csv("WeatherData2025.csv")
+
+weathermissing <- read.csv("WeatherDataMissing.csv")
+
+weather <- rbind(weather, weathermissing)
+
+# continue with new file
+
 overview_summary <- read.csv("overview_2025.csv")
 
   # fix weather
