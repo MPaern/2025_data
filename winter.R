@@ -307,7 +307,7 @@ cm %>%
 
 
 # match ratio calculations------------------
-# pnat
+# pnat data
 
 pnat_data <- cm %>%
   filter(autoid == "PIPNAT") %>%
