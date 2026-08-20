@@ -1,6 +1,7 @@
 ---
 title: "Autumn activity hotspots"
 format: html
+theme: pulse
 editor: visual
 ---
 
@@ -48,22 +49,26 @@ overview_summary <- cm %>%
     pnat_aug   = sum(autoid == "PIPNAT" & DATE >= "2025-08-15" & DATE <= "2025-08-31"),
     pnat_sep1  = sum(autoid == "PIPNAT" & DATE >= "2025-09-01" & DATE < "2025-09-15"),
     pnat_sep2  = sum(autoid == "PIPNAT" & DATE >= "2025-09-16" & DATE <= "2025-09-30"),
-    pnat_oct = sum(autoid == "PIPNAT" & DATE >= "2025-10-01")
+    pnat_oct = sum(autoid == "PIPNAT" & DATE >= "2025-10-01"),
+    
+    #VESMUR
+    vmursept = sum (autoid == "VESMUR" & DATE >= "2025-09-01")
+    
   ) %>%
   left_join(overview_summary, ., by = "Site")
 
 ```
 
 
-## Autumn activity
-
 Trying to make a visual picture based on coastal monitoring data from 2025. 
-Activity for 3 species- northern bat, parti-coloured bat and nathusius pipistrelle, on 4 different time periods- II half of August, I half of September, II half of September and October,
+Activity for two species- northern bat and nathusius pipistrelle, on 4 different time periods- II half of August, I half of September, II half of September and October,
 
 ## Locations
 
 Coastal monitoring sites with a bigger emphasis on sites we could mist net in.
-Not a lot of activity north of Stavanger. Interesting areas: Stavanger area lakes, coast in Jæren (around Orre and Brusand), Bryne, Brusand, Lista. 
+Not a lot of activity north of Stavanger. Interesting areas: Stavanger area lakes, coast in Jæren (around Orre and Brusand), Bryne, Lista. 
+
+:::{style="background-color: #d5d6ea; padding: 20px; border-radius: 5px;"}
 
 ## Northern bat
 ### Overall activity
@@ -91,7 +96,7 @@ ggplot(enil %>%
 ### Activity at different times
 #### End of August
 
-Still active, most active sites were...
+Still active, most active sites were the lakesites- Mosvatnet, Stokkalandsvatnet, Taksdalsvatnet and Smokkavatnet. Also Bedehus stands out as an active site for August.
 
 ```{r enil map august}
 #| label: fig-enil-map-a
@@ -101,7 +106,7 @@ Still active, most active sites were...
 
 tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
 
-basemap <- leaflet(width = "100%", height = "400px") %>%
+basemap <- leaflet(width = "100%", height = "494px") %>%
   addTiles(tilesURL)
 
 basemap %>%
@@ -114,21 +119,15 @@ basemap %>%
 
 ```
 
-
 #### Beginning of September
 
-Not that active anymore, but we could still find them at...
+Not that active anymore, only comparable locations to August are Store Stokkavatnet and Mosvatnet. 
 
 ```{r enil map sept1}
 #| label: fig-enil-map-s1
 #| echo: false
 #| warning: false
 #| fig-cap: First part of September northern bat activity
-
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-
-basemap <- leaflet(width = "100%", height = "400px") %>%
-  addTiles(tilesURL)
 
 basemap %>%
   addMinicharts(
@@ -140,25 +139,49 @@ basemap %>%
 
 ```
 
-#### End of September, October
+#### Change from August to September
 
-```{r enil map sept2}
-#| label: fig-enil-map-s2
+The activity of northern bat decreases in all locations from August to September, the size of the circles represents the activity left of the second part of September.
+
+```{r enil map change}
+#| label: fig-enil-map-c
 #| echo: false
 #| warning: false
-#| fig-cap: Second part of September northern bat activity
+#| fig-cap: Change of northern bat activity from end of August to September
 
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+overview_summary <- overview_summary %>%
+  mutate(
+    change1 = enil_sep2 - enil_aug
+  )
 
-basemap <- leaflet(width = "100%", height = "400px") %>%
-  addTiles(tilesURL)
+pal <- colorNumeric(
+  palette = "RdYlBu",
+  domain = overview_summary$change1
+)
 
-basemap %>%
-  addMinicharts(
-    overview_summary$longitude, overview_summary$latitude,
-    chartdata = overview_summary$enil_sep2, 
-    showLabels = TRUE,
-    width = 45
+leaflet(overview_summary) %>%
+  addTiles(tilesURL) %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = ~sqrt(enil_sep2) / 2,
+    color = ~pal(change1),
+    fillColor = ~pal(change1),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    popup = ~paste0(
+      "<b>Site:</b> ", Site,
+      "<br><b>Aug:</b> ", enil_aug,
+      "<br><b>Sep 1–15:</b> ", enil_sep1,
+      "<br><b>Sep 16–30:</b> ", enil_sep2,
+      "<br><b>Change:</b> ", change1
+    )
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~change1,
+    title = "Change in northern bat activity"
   )
 
 ```
@@ -166,6 +189,7 @@ basemap %>%
 ```{r enil map oct}
 #| label: fig-enil-map-o
 #| echo: false
+#| output: false
 #| warning: false
 #| fig-cap: October northern bat activity
 
@@ -183,34 +207,35 @@ basemap %>%
   )
 
 ```
+:::
+<!-- ## Parti-coloured bat -->
+<!-- ### Overall activity -->
 
-## Parti-coloured bat
-### Overall activity
-
-```{r vmur}
-#| echo: false
-#| label: fig-vmur
-#| warning: false
-#| fig-cap: Overall parti-coloured bat activity
-
-
-vmur <- cm %>%
-  filter(autoid=="VESMUR")
-
-ggplot(vmur %>% 
-         droplevels(), aes(x= DATE_12, color = taxa)) + 
-  stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") +
-  ylab("5s Recordings per night") + xlab("Month") +
-  ggtitle("Autumn activity 2025") +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-  theme_minimal()
-
-```
-
-Sites that the species is active around: 
+<!-- ```{r vmur} -->
+<!-- #| echo: false -->
+<!-- #| label: fig-vmur -->
+<!-- #| warning: false -->
+<!-- #| fig-cap: Overall parti-coloured bat activity -->
 
 
+<!-- vmur <- cm %>% -->
+<!--   filter(autoid=="VESMUR") -->
+
+<!-- ggplot(vmur %>%  -->
+<!--          droplevels(), aes(x= DATE_12, color = taxa)) +  -->
+<!--   stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") + -->
+<!--   ylab("5s Recordings per night") + xlab("Month") + -->
+<!--   ggtitle("Autumn activity 2025") + -->
+<!--   scale_x_date(date_breaks = "1 month", date_labels = "%b") + -->
+<!--   theme_minimal() -->
+
+<!-- ``` -->
+
+<!-- Sites that the species is active around in September: Smokkavatnet, Taksdalsvatnet and Bryne. -->
+
+::: {style="background-color: #c2e5d3; padding: 20px; border-radius: 5px;"}
 ## Nathusius pipistrelle
+
 ### Overall activity
 
 ```{r pnat}
@@ -233,19 +258,18 @@ ggplot(pnat %>%
 
 ```
 
+
 ### Activity at different times
-#### End of August
+
+#### Change from August to September
 
 ```{r pnat map august}
 #| label: fig-pnat-map-a
+#| output: false
 #| echo: false
 #| warning: false
 #| fig-cap: Second part of August nathusius pipistrelle activity
 
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-
-basemap <- leaflet(width = "100%", height = "400px") %>%
-  addTiles(tilesURL)
 
 basemap %>%
   addMinicharts(
@@ -257,22 +281,103 @@ basemap %>%
 
 ```
 
-Not so active yet, some bats at...
+```{r pnat change aug-sept}
+#| label: fig-pnat-map-c1
+#| echo: false
+#| warning: false
+#| fig-cap: Change of troll activity from end of August to September
 
-#### Beginning of September
+overview_summary <- overview_summary %>%
+  mutate(
+    change2 = pnat_sep1 - pnat_aug
+  )
 
-Very active time, especially... What stands out: 
+pal <- colorNumeric(
+  palette = "RdYlGn",
+  domain = overview_summary$change2
+)
+
+leaflet(overview_summary) %>%
+  addTiles(tilesURL) %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = ~sqrt(pnat_sep1) / 2,
+    color = ~pal(change2),
+    fillColor = ~pal(change2),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    popup = ~paste0(
+      "<b>Site:</b> ", Site,
+      "<br><b>Aug:</b> ", pnat_aug,
+      "<br><b>Sep 1–15:</b> ", pnat_sep1,
+      "<br><b>Change:</b> ", change2
+    )
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~change2,
+    title = "Change in troll activity"
+  )
+
+```
+
+In almost all locations, the activity rose, active locations in the beginning of September: Steinodden, Brusand, Lista, Store Stokkavatnet.The radius of the point shows the comparative activity in September
+
+
+#### Change in September
+
+In some locations, orange tones show that the activity does not change, but it does increase in Store Stokkavatnet.The radius of the point shows the comparative activity in the end of September.
+
+```{r pnat change sept}
+#| label: fig-pnat-map-c2
+#| echo: false
+#| warning: false
+#| fig-cap: Change of troll activity in September
+
+overview_summary <- overview_summary %>%
+  mutate(
+    change3 = pnat_sep2 - pnat_sep1
+  )
+
+pal <- colorNumeric(
+  palette = "RdYlGn",
+  domain = overview_summary$change3
+)
+
+leaflet(overview_summary) %>%
+  addTiles(tilesURL) %>%
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = ~sqrt(pnat_sep2) / 2,
+    color = ~pal(change3),
+    fillColor = ~pal(change3),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    popup = ~paste0(
+      "<b>Site:</b> ", Site,
+      "<br><b>Sep 1-15:</b> ", pnat_sep1,
+      "<br><b>Sep 16–30:</b> ", pnat_sep2,
+      "<br><b>Change:</b> ", change3
+    )
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~change3,
+    title = "Change in troll activity"
+  )
+
+```
 
 ```{r pnat map sept1}
 #| label: fig-pnat-map-s1
 #| echo: false
+#| output: false
 #| warning: false
 #| fig-cap: First part of September nathusius pipistrelle activity
-
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-
-basemap <- leaflet(width = "100%", height = "400px") %>%
-  addTiles(tilesURL)
 
 basemap %>%
   addMinicharts(
@@ -284,13 +389,10 @@ basemap %>%
 
 ```
 
-#### End of September
-
-Activity shift more to ...
-
 ```{r pnat map sept2}
 #| label: fig-pnat-map-s2
 #| echo: false
+#| output: false
 #| warning: false
 #| fig-cap: Second part of September nathusius pipistrelle activity
 
@@ -311,16 +413,14 @@ basemap %>%
 
 #### October
 
+In warm October, there is still some activity left in the south and around Stavanger.
+
 ```{r pnat map o}
 #| label: fig-pnat-map-o
 #| echo: false
 #| warning: false
 #| fig-cap: October nathusius pipistrelle activity
 
-tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-
-basemap <- leaflet(width = "100%", height = "400px") %>%
-  addTiles(tilesURL)
 
 basemap %>%
   addMinicharts(
@@ -330,75 +430,77 @@ basemap %>%
     width = 45
   )
 
-#another
+```
 
-pal <- colorNumeric(
-  palette = "YlOrRd",
-  domain = overview_summary$pnat_oct
-)
+#### Time of night
 
-leaflet(overview_summary) %>%
-  addTiles(tilesURL) %>%
-  addCircleMarkers(
-    lng = ~longitude,
-    lat = ~latitude,
-    radius = ~sqrt(pnat_oct)/2,
-    color = ~pal(pnat_oct),
-    fillOpacity = 0.7,
-    stroke = FALSE,
-    popup = ~paste0(
-      "<b>Site:</b> ", Site,
-      "<br><b>PIPNAT:</b> ", pnat_oct
-    )
+Activity pattern during September nights in 7 potential mist netting locations. Watch out: overall activity can be different because of some outlier nights.
+
+Mosvatnet(CM-06) - first week of september 2025, almost no activity
+
+```{r pnat diurnal }
+#| label: fig-pnat-diu
+#| echo: false
+#| warning: false
+#| fig-cap: Activity timing in September
+
+pnat %>%
+  filter(
+    DATE_12 >= "2025-09-01" & DATE_12 <= "2025-09-30",
+    Site %in% c("CM-06", "CM-17", "CM-56", "CM-25", "CM-11", "CM-12", "CM-13")
   ) %>%
-  addLegend(
-    "bottomright",
-    pal = pal,
-    values = ~pnat_oct,
-    title = "PIPNAT calls"
-  )
+    mutate(
+    HOUR_plot = ifelse(HOUR < 14, HOUR + 24, HOUR)
+  ) %>%
+  ggplot() +
+  aes(x = HOUR_plot) +
+  geom_histogram(
+    binwidth = 1,
+    boundary = 0,
+    fill = "#112446"
+  ) +
+  scale_x_continuous(
+    breaks = c(14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36),
+    labels = c(14, 16, 18, 20, 22, 24, 2, 4, 6, 8, 10, 12)
+  ) +
+  ylab("5s Recordings") + xlab("Hour") +
+  ggtitle("Pnat activity times in september") +
+  theme_minimal() +
+  facet_wrap(vars(Site))
 
+
+```
+```{r pnat diurnal site}
+#| label: fig-pnat-diu
+#| echo: false
+#| warning: false
+#| fig-cap: Activity timing in September per site
+
+pnat %>%
+  filter(
+    DATE_12 >= "2025-09-01" & DATE_12 <= "2025-09-30",
+    Site %in% c("CM-06")
+  ) %>%
+    mutate(
+    HOUR_plot = ifelse(HOUR < 14, HOUR + 24, HOUR)
+  ) %>%
+  ggplot() +
+  aes(x = HOUR_plot) +
+  geom_histogram(
+    binwidth = 1,
+    boundary = 0,
+    fill = "#112446"
+  ) +
+  scale_x_continuous(
+    breaks = c(14, 18, 22, 26, 30, 34),
+    labels = c(14, 18, 22, 2, 6, 10)
+  ) +
+  ylab("5s Recordings") + xlab("Hour") +
+  ggtitle("Pnat activity times in september") +
+  theme_minimal() +
+  facet_wrap(vars(DATE))
 
 
 ```
 
-
-```{r change}
-
-overview_summary <- overview_summary %>%
-  mutate(
-    change = pnat_sep2 - pnat_aug
-  )
-
-pal <- colorNumeric(
-  palette = "RdYlGn",
-  domain = overview_summary$change
-)
-
-leaflet(overview_summary) %>%
-  addTiles(tilesURL) %>%
-  addCircleMarkers(
-    lng = ~longitude,
-    lat = ~latitude,
-    radius = ~sqrt(pnat_sep2) / 2,
-    color = ~pal(change),
-    fillColor = ~pal(change),
-    fillOpacity = 0.8,
-    stroke = FALSE,
-    popup = ~paste0(
-      "<b>Site:</b> ", Site,
-      "<br><b>Aug:</b> ", pnat_aug,
-      "<br><b>Sep 1–15:</b> ", pnat_sep1,
-      "<br><b>Sep 16–30:</b> ", pnat_sep2,
-      "<br><b>Change:</b> ", change
-    )
-  ) %>%
-  addLegend(
-    "bottomright",
-    pal = pal,
-    values = ~change,
-    title = "Change in PIPNAT"
-  )
-
-```
-
+:::
