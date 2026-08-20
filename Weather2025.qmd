@@ -44,7 +44,7 @@ weather1 <- read.csv("WeatherData2025.csv")
 
 weathermissing <- read.csv("WeatherDataMissing.csv")
 
-weather <- rbind(weather, weathermissing)
+weather <- rbind(weather1, weathermissing)
 
 # continue with new file
 
@@ -140,7 +140,7 @@ cm[1]<- NULL
 # cm[nchar(cm$datetime) < 19, ]
 cm$datetime <- as.POSIXct(cm$datetime)
 
-# datetime lenght 10 needs time 00:00:00
+# datetime length 10 needs time 00:00:00
 
 cm$datetime <- ymd_hms(
   ifelse(nchar(cm$datetime) == 10,
@@ -232,6 +232,9 @@ weather <- weather %>%
 ### Temperature
 
 Here we'll see what the temperatures are like around the sites. The sites are arranged from north to south and on @fig-temperature-overview we can see that the mean temperatures (dark lines) are similar throughout the study area, varying more in the first half of the year our detectors were up. To further highlight some outliers, we see on @fig-temperature-mean that locations that have lower mean temperatures have higher temperature deviations throughout the year.
+
+
+
 
 ```{r}
 #| echo: false
@@ -521,5 +524,65 @@ ggplot(weather_ns) +
  theme_bw() +
  theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
 
+
+```
+
+```{r temporary}
+# temp and rain by site
+#| label: fig-month-on-site
+#| echo: false
+#| output: false
+#| warning: false
+#| fig-cap: Weather in September per site
+
+# change month and name as wished
+
+weather %>%
+  filter(
+    month == "9",
+    name == "CM-12"
+      ) %>%
+  ggplot() +
+ aes(x = datetime, y = air_temperature_2m) +
+ geom_line(colour = "#3A69BE") +
+ labs(x = "Date", y = "Temperature (°C)", title = "Temperature over 2025 Sept") +
+scale_x_datetime(
+  date_breaks = "1 day",
+  date_labels = "%d"
+) 
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
+
+weather %>%
+  filter(
+    month == "9",
+    name == "CM-12"
+      ) %>%
+  ggplot() +
+ aes(x = datetime, y = precipitation_amount) +
+ geom_line(colour = "#3A69BE") +
+ labs(x = "Date", y = "Rain (mm)", title = "Rain over 2025 Sept") +
+  scale_x_datetime(
+  date_breaks = "1 day",
+  date_labels = "%d"
+) 
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
+
+weather %>%
+  filter(
+    month == "9",
+    name == "CM-12"
+      ) %>%
+  ggplot() +
+ aes(x = datetime, y = wind_direction_10m) +
+ geom_line(colour = "#3A69BE") +
+ labs(x = "Date", y = "Wind direction", title = "Wind over 2025 Sept") +
+  scale_x_datetime(
+  date_breaks = "1 day",
+  date_labels = "%d"
+) 
+ theme_bw() +
+ theme(legend.text = element_text(size = 12L), legend.title = element_text(size = 12L))
 
 ```

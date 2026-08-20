@@ -436,7 +436,13 @@ basemap %>%
 
 Activity pattern during September nights in 7 potential mist netting locations. Watch out: overall activity can be different because of some outlier nights.
 
-Mosvatnet(CM-06) - first week of september 2025, almost no activity
+Mosvatnet (CM-06) - Activity drops on cold nights and rainy weather.
+Lista (CM-11) - Some very active nights around 9th and 10th of September, rest of the month not so active.
+Steinodden (CM-12) - Some active night around 12, 14, 15 September. 
+Fuglevika (CM-13) - Active night 9th of Sept.
+Store Stokkavatnet (CM-17) - A lot more activity in the last week of the month.
+Brusand (CM-25) - More activity 17th to 23rd of September.
+Bryne (CM-56) - More stable activity, but overall lowel levels than others. 
 
 ```{r pnat diurnal }
 #| label: fig-pnat-diu
@@ -473,13 +479,16 @@ pnat %>%
 ```{r pnat diurnal site}
 #| label: fig-pnat-diu
 #| echo: false
+#| output: false
 #| warning: false
-#| fig-cap: Activity timing in September per site
+#| fig-cap: Activity timing in September per day
+
+# change site to the one you want to view
 
 pnat %>%
   filter(
     DATE_12 >= "2025-09-01" & DATE_12 <= "2025-09-30",
-    Site %in% c("CM-06")
+    Site %in% c("CM-56")
   ) %>%
     mutate(
     HOUR_plot = ifelse(HOUR < 14, HOUR + 24, HOUR)
