@@ -10,3 +10,5 @@ overview_2025.csv
 cm_2025.csv
 *.csv
 .positai
+/.quarto/
+/_site/

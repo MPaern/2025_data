@@ -477,7 +477,7 @@ pnat %>%
 
 ```
 ```{r pnat diurnal site}
-#| label: fig-pnat-diu
+#| label: fig-pnat-diu-s
 #| echo: false
 #| output: false
 #| warning: false
