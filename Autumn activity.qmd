@@ -18,6 +18,7 @@ library(lubridate)
 library(leaflet.minicharts)
 library(leaflet)
 library(leaflet.extras)
+library(ggtext)
 
 # read data ---------------------------------------------------------------
 
@@ -476,6 +477,51 @@ pnat %>%
 
 
 ```
+
+```{r pnat-site}
+#| label: fig-pnat-site
+#| echo: false
+#| warning: false
+#| fig-cap: Activity timing in September-October
+
+pnat_count <- pnat %>%
+  count(DATE_12, Site, name = "n")
+
+
+pnat_count %>%
+  filter(
+    DATE_12 >= "2025-09-01",
+    Site %in% c("CM-06", "CM-17", "CM-56", "CM-25", "CM-11", "CM-12", "CM-13")
+  ) %>%
+ggplot() +
+  aes(x = DATE_12, y = Site) +
+  geom_point(
+    aes(size = n, color = factor(n == 0)),
+    alpha = 0.5
+  ) +
+  scale_size_area(max_size = 15) +
+  scale_color_manual(
+    values = c("TRUE" = "gray", "FALSE" = "chartreuse4")
+  ) +
+  labs(
+    title = "Number of *Pipistrellus nathusii* recordings from selected sites",
+    x = "Date in season",
+    y = "Site"
+  ) +
+  theme(
+    plot.title = ggtext::element_markdown(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    text = element_text(size = 12),
+    axis.line = element_line(colour = "black"),
+    legend.position = "none"
+  ) 
+
+```
+
+
+
 ```{r pnat diurnal site}
 #| label: fig-pnat-diu-s
 #| echo: false
