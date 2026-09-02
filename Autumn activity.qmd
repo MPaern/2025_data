@@ -58,6 +58,10 @@ overview_summary <- cm %>%
   ) %>%
   left_join(overview_summary, ., by = "Site")
 
+# add type (coast, lake ..)
+
+cm$type <- overview_summary$type[match(cm$Site, overview_summary$Site)]
+
 ```
 
 
@@ -487,11 +491,12 @@ pnat %>%
 pnat_count <- pnat %>%
   count(DATE_12, Site, name = "n")
 
+# "CM-06", "CM-17", "CM-56", "CM-25", "CM-11", "CM-12", "CM-13", 
 
 pnat_count %>%
   filter(
     DATE_12 >= "2025-09-01",
-    Site %in% c("CM-06", "CM-17", "CM-56", "CM-25", "CM-11", "CM-12", "CM-13")
+    Site %in% c("CM-28", "CM-22", "CM-03", "CM-26")
   ) %>%
 ggplot() +
   aes(x = DATE_12, y = Site) +
@@ -530,17 +535,22 @@ ggplot() +
 #| fig-cap: Activity timing in September per day
 
 # change site to the one you want to view
+# not correct, still some problems with DATE_12 and having the view for one night in one graph
 
 pnat %>%
   filter(
-    DATE_12 >= "2025-09-01" & DATE_12 <= "2025-09-30",
-    Site %in% c("CM-56")
+    DATE_12 >= "2025-08-29" & DATE_12 <= "2025-10-01",
+    Site == "CM-28"
   ) %>%
-    mutate(
+  mutate(
+    night_date = if_else(
+      HOUR < 14,
+      as.Date(DATE_12) - 1,
+      as.Date(DATE_12)
+    ),
     HOUR_plot = ifelse(HOUR < 14, HOUR + 24, HOUR)
   ) %>%
-  ggplot() +
-  aes(x = HOUR_plot) +
+  ggplot(aes(x = HOUR_plot)) +
   geom_histogram(
     binwidth = 1,
     boundary = 0,
@@ -550,12 +560,302 @@ pnat %>%
     breaks = c(14, 18, 22, 26, 30, 34),
     labels = c(14, 18, 22, 2, 6, 10)
   ) +
-  ylab("5s Recordings") + xlab("Hour") +
-  ggtitle("Pnat activity times in september") +
+  ylab("5s Recordings") +
+  xlab("Hour") +
+  ggtitle("Pnat activity times in September") +
   theme_minimal() +
-  facet_wrap(vars(DATE))
+  facet_wrap(~ night_date)
 
 
 ```
 
 :::
+
+#### Weather
+
+```{r connect weather}
+#| label: fig-pnat-weather
+#| echo: false
+#| output: false
+#| warning: false
+#| fig-cap: Weather around activity peaks
+
+weather <- read.csv("WeatherData2025.csv")
+library(glmmTMB)
+library(ggeffects)
+
+
+# create a date to the weather df
+weather_clean <- weather %>%
+  mutate(
+    year  = as.integer(year),
+    month = as.integer(month),
+    day   = as.integer(day),
+    hour  = as.integer(hour),
+    
+    # to utc
+    datetime_utc = make_datetime(year, month, day, hour, tz = "UTC"),
+    
+    # Oslo time
+    datetime_local = with_tz(datetime_utc, tz = "Europe/Oslo"),
+    
+    # shift by 12 hours
+    datetime_shifted = datetime_local - hours(12))
+
+# separately coast and lakes to compare activity patterns-------------------------------------------
+
+# filter sites and date
+sites <- c("CM-22","CM-26","CM-25","CM-28","CM-12","CM-11", "CM-13")
+coast <- c()
+lakes <- c()
+l56 <- c("CM-56")
+
+
+weather_filtered <- weather_clean %>%
+  filter(
+    name %in% sites,
+    datetime_shifted >= as.POSIXct("2025-09-01 00:00:00", tz = "Europe/Oslo"),
+    datetime_shifted <= as.POSIXct("2025-09-30 23:59:59"))
+
+# nightly means (it looks like daytime but since we shifted it its actually night time)
+weather_nightly <- weather_filtered %>%
+  filter(
+    hour(datetime_shifted) >= 6 &
+      hour(datetime_shifted) < 18
+  ) %>%
+  mutate(date = as.Date(datetime_shifted)) %>%
+  group_by(name, date) %>%
+  dplyr::summarize(
+    mean_temp = mean(air_temperature_2m, na.rm = TRUE),
+    mean_wind = mean(wind_speed_10m, na.rm = TRUE),
+    dir_wind = mean(wind_direction_10m, na.rm = TRUE),
+    .groups = "drop")
+
+weather_nightly <- weather_nightly %>%
+  mutate(
+    wind_sector = cut(
+      (dir_wind + 22.5) %% 360,
+      breaks = c(0, 45, 90, 135, 180, 225, 270, 315, 360),
+      labels = c("N", "NE", "E", "SE", "S", "SW", "W", "NW"),
+      include.lowest = TRUE
+    )
+  )
+
+#JOIN
+
+weather_nightly <- weather_nightly %>%
+  rename(SITE = name,
+         DATE.12 = date)
+
+weather_nightly <- weather_nightly %>%
+  left_join(
+    pnat %>%
+      count(Site, DATE_12, name = "pnat"),
+    by = c("SITE" = "Site", "DATE.12" = "DATE_12")
+  ) %>%
+  mutate(pnat = coalesce(pnat, 0L))
+
+weather_nightly %>%
+  select(pnat, mean_temp, mean_wind, dir_wind) %>%
+  cor(use = "complete.obs", method = "spearman")
+
+# model for correlation
+
+model <- glmmTMB(
+  pnat ~ mean_temp + mean_wind + (1 | SITE),
+  family = nbinom2,
+  data = weather_nightly
+)
+
+summary(model)
+
+# predicted counts of pnat
+
+temp_pred <- ggpredict(model, terms = "mean_temp")
+wind_pred <- ggpredict(model, terms = "mean_wind")
+
+plot(temp_pred)
+plot(wind_pred)
+
+# arrange data
+
+weather_nightly %>%
+  filter(pnat >= quantile(pnat, 0.90, na.rm = TRUE)) %>%
+  select(SITE, DATE.12, pnat, mean_temp, mean_wind) %>%
+  arrange(desc(pnat))
+
+weather_nightly %>%
+  arrange(desc(pnat)) %>%
+  select(SITE, DATE.12, pnat, mean_temp, mean_wind) %>%
+  head(10)
+
+weather_nightly %>%
+  group_by(wind_sector) %>%
+  summarise(
+    mean_occurrence = mean(pnat, na.rm = TRUE),
+    median_occurrence = median(pnat, na.rm = TRUE),
+    n = n()
+  ) %>%
+  arrange(desc(mean_occurrence))
+
+# plot, wind rose for all, but it's kinda wrong---------------------------------
+
+wind_summary <- weather_nightly %>%
+  mutate(
+    sector = floor((dir_wind + 11.25) %% 360 / 22.5),
+    direction = c(
+      "N", "NNE", "NE", "ENE",
+      "E", "ESE", "SE", "SSE",
+      "S", "SSW", "SW", "WSW",
+      "W", "WNW", "NW", "NNW"
+    )[sector + 1]
+  ) %>%
+  group_by(sector, direction) %>%
+  summarise(
+    mean_pnat = mean(pnat, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+
+weather_nightly %>%
+  group_by(wind_sector) %>%
+  summarise(
+    n = n(),
+    mean_occurrence = mean(pnat, na.rm = TRUE),
+    median_occurrence = median(pnat, na.rm = TRUE),
+    mean_direction = mean(dir_wind, na.rm = TRUE)
+  )
+
+wind_occ <- weather_nightly %>%
+  mutate(
+    sector = floor((dir_wind + 11.25) %% 360 / 22.5),
+    direction = c(
+      "N", "NNE", "NE", "ENE",
+      "E", "ESE", "SE", "SSE",
+      "S", "SSW", "SW", "WSW",
+      "W", "WNW", "NW", "NNW"
+    )[sector + 1]
+  ) %>%
+  group_by(sector, direction) %>%
+  summarise(
+    total_pnat = sum(pnat, na.rm = TRUE),
+    mean_pnat = mean(pnat, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+ggplot(wind_occ, aes(x = sector, y = total_pnat)) +
+  geom_col(width = 1, alpha = 0.8) +
+  coord_polar(start = -pi / 2) +
+  scale_x_continuous(
+    breaks = 0:15,
+    labels = c(
+      "N", "NNE", "NE", "ENE",
+      "E", "ESE", "SE", "SSE",
+      "S", "SSW", "SW", "WSW",
+      "W", "WNW", "NW", "NNW"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Total occurrences",
+    title = "Total species occurrences by wind direction"
+  ) +
+  theme_minimal()
+
+# wind rose per site, also not the best---------------------------------------------
+
+
+wind_site <- weather_nightly %>%
+  mutate(
+    sector = floor((dir_wind + 11.25) %% 360 / 22.5),
+    direction = c(
+      "N", "NNE", "NE", "ENE",
+      "E", "ESE", "SE", "SSE",
+      "S", "SSW", "SW", "WSW",
+      "W", "WNW", "NW", "NNW"
+    )[sector + 1]
+  ) %>%
+  group_by(SITE, sector, direction) %>%
+  summarise(
+    mean_pnat = mean(pnat, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+ggplot(wind_site, aes(x = sector, y = mean_pnat)) +
+  geom_col(width = 1, alpha = 0.8) +
+  coord_polar(start = -pi / 2) +
+  scale_x_continuous(
+    breaks = 0:15,
+    labels = c(
+      "N", "NNE", "NE", "ENE",
+      "E", "ESE", "SE", "SSE",
+      "S", "SSW", "SW", "WSW",
+      "W", "WNW", "NW", "NNW"
+    )
+  ) +
+  facet_wrap(~ SITE) +
+  labs(
+    x = NULL,
+    y = "Mean occurrence",
+    title = "Species occurrence by wind direction and site"
+  ) +
+  theme_minimal()
+
+# At each site, what temperature and wind conditions occurred on nights with the highest species counts?
+
+
+# Select the top 10% occurrence nights within each site
+top_nights <- weather_nightly %>%
+  group_by(SITE) %>%
+  filter(pnat >= quantile(pnat, 0.90, na.rm = TRUE)) %>%
+  ungroup()
+
+ggplot(
+  top_nights,
+  aes(x = mean_temp, y = mean_wind, size = pnat)
+) +
+  geom_point(alpha = 0.7) +
+  facet_wrap(~ SITE) +
+  labs(
+    x = "Mean temperature (°C)",
+    y = "Mean wind speed",
+    size = "Occurrences",
+    title = "Weather conditions during high-occurrence nights",
+    subtitle = "Top 10% of occurrence nights within each site"
+  ) +
+  theme_classic()
+
+top_nights <- weather_nightly %>%
+  group_by(SITE) %>%
+  arrange(desc(pnat)) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+
+ggplot(
+  top_nights,
+  aes(x = mean_temp, y = mean_wind, size = pnat)
+) +
+  geom_point(alpha = 0.7) +
+  facet_wrap(~ SITE) +
+  labs(
+    x = "Mean temperature (°C)",
+    y = "Mean wind speed",
+    size = "Occurrences",
+    title = "Weather conditions during the 10 highest-occurrence nights",
+    subtitle = "Shown separately for each site"
+  ) +
+  theme_classic()
+
+top_nights %>%
+  select(SITE, DATE.12, pnat, mean_temp, mean_wind, dir_wind) %>%
+  arrange(SITE, desc(pnat))
+
+# wind direction
+
+
+
+```
+
