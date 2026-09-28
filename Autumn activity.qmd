@@ -539,8 +539,8 @@ ggplot() +
 
 pnat %>%
   filter(
-    DATE_12 >= "2025-08-29" & DATE_12 <= "2025-10-01",
-    Site == "CM-28"
+    DATE_12 >= "2025-08-29" & DATE_12 <= "2025-10-15",
+    Site == "CM-17"
   ) %>%
   mutate(
     night_date = if_else(
@@ -605,7 +605,7 @@ weather_clean <- weather %>%
 # separately coast and lakes to compare activity patterns-------------------------------------------
 
 # filter sites and date
-sites <- c("CM-22","CM-26","CM-25","CM-28","CM-12","CM-11", "CM-13")
+sites <- c("CM-17", "CM-06", "CM-56", "CM-25")
 coast <- c()
 lakes <- c()
 l56 <- c("CM-56")
@@ -615,7 +615,7 @@ weather_filtered <- weather_clean %>%
   filter(
     name %in% sites,
     datetime_shifted >= as.POSIXct("2025-09-01 00:00:00", tz = "Europe/Oslo"),
-    datetime_shifted <= as.POSIXct("2025-09-30 23:59:59"))
+    datetime_shifted <= as.POSIXct("2025-10-10 23:59:59"))
 
 # nightly means (it looks like daytime but since we shifted it its actually night time)
 weather_nightly <- weather_filtered %>%
@@ -629,6 +629,7 @@ weather_nightly <- weather_filtered %>%
     mean_temp = mean(air_temperature_2m, na.rm = TRUE),
     mean_wind = mean(wind_speed_10m, na.rm = TRUE),
     dir_wind = mean(wind_direction_10m, na.rm = TRUE),
+    rain = sum(precipitation_amount, na.rm = TRUE),
     .groups = "drop")
 
 weather_nightly <- weather_nightly %>%
@@ -640,6 +641,8 @@ weather_nightly <- weather_nightly %>%
       include.lowest = TRUE
     )
   )
+
+weather_nightly$rain <- round(weather_nightly$rain, 2)
 
 #JOIN
 
