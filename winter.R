@@ -398,20 +398,172 @@ summary(ppyg_glm)
 # activity minutes and further data handling----------------------------------------
 
 
+# autoid match check-----------------------------
+
+# create column auto with the same names as used in manual ID-s
+
+cm$auto <- dplyr::recode(
+  cm$autoid,
+  "EPTNIL" = "ENIL",
+  "BARBAR" = "BBAR",
+  "NYCNOC" = "NNOC",
+  "NoID" = "CHSP",
+  "Noise" = "Noise",
+  "VESMUR" = "VMUR",
+  "PIPNAT" = "PNAT",
+  "PIPPYG" = "PPYG",
+  "MYODAY" = "MYSP",
+  "MYOMYS" = "MYSP",
+  "PLEAUR" = "PAUR",
+  "MYOBRA" = "MYSP"
+)
+  
+
+# leave out Noise files 
+
+cm$match <- ifelse(
+  cm$auto != "Noise",
+  cm$auto == cm$manual,
+  NA
+)
+
+# check how much they match
+
+table(cm$match, useNA = "ifany")
+
+# get a percentage
+
+prop.table(table(cm$match)) * 100
+
+# Get daytime bats
+
+library(suncalc)
+
+overview <- read.csv("overview_2025.csv")
+
+library(dplyr)
+library(suncalc)
+
+library(dplyr)
+library(suncalc)
+
+# Add coordinates 
+
+daynight <- cm %>%
+  left_join(
+    overview %>% select(Site, latitude, longitude),
+    by = "Site"
+  ) %>%
+  mutate(
+    datetime = as.POSIXct(
+      paste(DATE, TIME),
+      format = "%Y-%m-%d %H:%M:%S",
+      tz = "Europe/Oslo"
+    )
+  )
+
+sun_dates <- daynight %>%
+  distinct(Site, DATE, latitude, longitude)
+
+sun_dates <- sun_dates %>%
+  rowwise() %>%
+  mutate(
+    sunrise = getSunlightTimes(
+      date = as.Date(DATE),
+      lat = latitude,
+      lon = longitude,
+      keep = c("sunrise")
+    )$sunrise,
+    
+    sunset = getSunlightTimes(
+      date = as.Date(DATE),
+      lat = latitude,
+      lon = longitude,
+      keep = c("sunset")
+    )$sunset
+  ) %>%
+  ungroup()
+
+daynight <- daynight %>%
+  left_join(
+    sun_dates %>% select(Site, DATE, sunrise, sunset),
+    by = c("Site", "DATE")
+  )
+
+# daytime
+
+daynight <- daynight %>%
+  mutate(
+    daytime = datetime >= sunrise & datetime <= sunset
+  )
+
+# how many match?
+
+daynight %>%
+  filter(daytime == TRUE, auto != "Noise") %>%
+  summarise(
+    total = n(),
+    matches = sum(auto == manual, na.rm = TRUE),
+    match_percent = mean(auto == manual, na.rm = TRUE) * 100
+  )
 
 
+# day observations
+
+day <- daynight %>%
+  filter(daytime == TRUE)
 
 
+day <- day %>%
+  mutate(
+    match = auto == manual
+  )
 
 
+day <- day %>%
+  mutate(
+    match = ifelse(
+      auto != "Noise",
+      auto == manual,
+      NA
+    )
+  )
 
 
+# plots
+
+ggplot(
+  day %>% filter(!is.na(match)),
+  aes(x = Site, fill = match)
+) +
+  geom_bar() +
+  labs(
+    x = "Site",
+    y = "Number of observations",
+    fill = "Auto ID matches manual ID"
+  ) +
+  theme_minimal()
 
 
+# second 
+
+df_day <- daynight %>%
+  filter(daytime == TRUE, auto != "Noise") %>%
+  mutate(
+    match = auto == manual
+  )
 
 
+df_day <- daynight %>%
+  filter(
+    daytime == TRUE,
+    autoid != "Noise",
+    !is.na(auto),
+    !is.na(manual)
+  ) %>%
+  mutate(
+    match = auto == manual
+  )
 
 
-
-
-
+ggplot(df_day, aes(x = Site, fill = match)) + geom_bar() + labs( x = "Site", y = "Number of daytime observations from winter", fill = "Auto ID matches manual ID" ) + theme_minimal()
