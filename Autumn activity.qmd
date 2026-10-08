@@ -64,18 +64,15 @@ cm$type <- overview_summary$type[match(cm$Site, overview_summary$Site)]
 
 ```
 
-
-Trying to make a visual picture based on coastal monitoring data from 2025. 
-Activity for two species- northern bat and nathusius pipistrelle, on 4 different time periods- II half of August, I half of September, II half of September and October,
+Trying to make a visual picture based on coastal monitoring data from 2025. Activity for two species- northern bat and nathusius pipistrelle, on 4 different time periods- II half of August, I half of September, II half of September and October,
 
 ## Locations
 
-Coastal monitoring sites with a bigger emphasis on sites we could mist net in.
-Not a lot of activity north of Stavanger. Interesting areas: Stavanger area lakes, coast in Jæren (around Orre and Brusand), Bryne, Lista. 
+Coastal monitoring sites with a bigger emphasis on sites we could mist net in. Not a lot of activity north of Stavanger. Interesting areas: Stavanger area lakes, coast in Jæren (around Orre and Brusand), Bryne, Lista.
 
-:::{style="background-color: #d5d6ea; padding: 20px; border-radius: 5px;"}
-
+::: {style="background-color: #d5d6ea; padding: 20px; border-radius: 5px;"}
 ## Northern bat
+
 ### Overall activity
 
 ```{r enil}
@@ -99,6 +96,7 @@ ggplot(enil %>%
 ```
 
 ### Activity at different times
+
 #### End of August
 
 Still active, most active sites were the lakesites- Mosvatnet, Stokkalandsvatnet, Taksdalsvatnet and Smokkavatnet. Also Bedehus stands out as an active site for August.
@@ -126,7 +124,7 @@ basemap %>%
 
 #### Beginning of September
 
-Not that active anymore, only comparable locations to August are Store Stokkavatnet and Mosvatnet. 
+Not that active anymore, only comparable locations to August are Store Stokkavatnet and Mosvatnet.
 
 ```{r enil map sept1}
 #| label: fig-enil-map-s1
@@ -213,25 +211,37 @@ basemap %>%
 
 ```
 :::
+
 <!-- ## Parti-coloured bat -->
+
 <!-- ### Overall activity -->
 
 <!-- ```{r vmur} -->
+
 <!-- #| echo: false -->
+
 <!-- #| label: fig-vmur -->
+
 <!-- #| warning: false -->
+
 <!-- #| fig-cap: Overall parti-coloured bat activity -->
 
-
 <!-- vmur <- cm %>% -->
+
 <!--   filter(autoid=="VESMUR") -->
 
 <!-- ggplot(vmur %>%  -->
+
 <!--          droplevels(), aes(x= DATE_12, color = taxa)) +  -->
+
 <!--   stat_count( geom = "point", size= 4, alpha = 0.90, color = "royalblue") + -->
+
 <!--   ylab("5s Recordings per night") + xlab("Month") + -->
+
 <!--   ggtitle("Autumn activity 2025") + -->
+
 <!--   scale_x_date(date_breaks = "1 month", date_labels = "%b") + -->
+
 <!--   theme_minimal() -->
 
 <!-- ``` -->
@@ -262,7 +272,6 @@ ggplot(pnat %>%
   theme_minimal()
 
 ```
-
 
 ### Activity at different times
 
@@ -329,7 +338,6 @@ leaflet(overview_summary) %>%
 ```
 
 In almost all locations, the activity rose, active locations in the beginning of September: Steinodden, Brusand, Lista, Store Stokkavatnet.The radius of the point shows the comparative activity in September
-
 
 #### Change in September
 
@@ -441,13 +449,7 @@ basemap %>%
 
 Activity pattern during September nights in 7 potential mist netting locations. Watch out: overall activity can be different because of some outlier nights.
 
-Mosvatnet (CM-06) - Activity drops on cold nights and rainy weather.
-Lista (CM-11) - Some very active nights around 9th and 10th of September, rest of the month not so active.
-Steinodden (CM-12) - Some active night around 12, 14, 15 September. 
-Fuglevika (CM-13) - Active night 9th of Sept.
-Store Stokkavatnet (CM-17) - A lot more activity in the last week of the month.
-Brusand (CM-25) - More activity 17th to 23rd of September.
-Bryne (CM-56) - More stable activity, but overall lowel levels than others. 
+Mosvatnet (CM-06) - Activity drops on cold nights and rainy weather. Lista (CM-11) - Some very active nights around 9th and 10th of September, rest of the month not so active. Steinodden (CM-12) - Some active night around 12, 14, 15 September. Fuglevika (CM-13) - Active night 9th of Sept. Store Stokkavatnet (CM-17) - A lot more activity in the last week of the month. Brusand (CM-25) - More activity 17th to 23rd of September. Bryne (CM-56) - More stable activity, but overall lowel levels than others.
 
 ```{r pnat diurnal }
 #| label: fig-pnat-diu
@@ -525,8 +527,6 @@ ggplot() +
 
 ```
 
-
-
 ```{r pnat diurnal site}
 #| label: fig-pnat-diu-s
 #| echo: false
@@ -568,7 +568,6 @@ pnat %>%
 
 
 ```
-
 :::
 
 #### Weather
@@ -859,6 +858,25 @@ top_nights %>%
 # wind direction
 
 
+
+```
+
+```{r plot}
+
+# cm %>%
+#   filter(autoid %in% c("EPTNIL", "PIPPYG", "PIPNAT")) %>%
+#   mutate(DATE = as.Date(DATE)) %>%
+#   count(DATE, autoid) %>%
+#   ggplot(aes(x = DATE, y = n, colour = autoid)) +
+#   geom_smooth(se = FALSE, method = "loess") +
+#   labs(
+#     x = "Date",
+#     y = "Number of occurrences",
+#     colour = "Bat species"
+#   ) +
+#   theme_minimal()
+# 
+# 
 
 ```
 
