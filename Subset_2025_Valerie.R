@@ -433,8 +433,8 @@ write.csv(
 
 
 
-## Recreate file paths 
-```{r}
+## Recreate file paths------------ 
+
 fp <- read_csv("C:/Users/apmc/OneDrive - Norwegian University of Life Sciences/BatLab Norway/Projects/CoastalMonitoring/Analyses/Outputs/Reed/FixingFilepaths_2025-10-07/cleaned_output_filepaths_CM2024.csv",)
 
 
@@ -452,69 +452,137 @@ levels(fp$path1)
 ## Copying files 
 # not sure about noise subdirectories
 
+# starting with smallest- 52 and 32
+#didn't do 06- this might take a while. 
+
+
+
+
+
 ### CM-06 ### 
+#10215
 
 cm06 <- fp %>% filter(site == "CM-06") %>% droplevels()
 levels(cm06$path1)
 
+cm06$fullpath <- paste0(cm06$path1, cm06$filename)
+head(cm06$fullpath)
 
-# I'm here
-
-
-
-
-
-
-
-
-
-
-
-
-cm06.noise <- cm06 %>% filter(autoid == "Noise") %>% droplevels()
-# 300 noise files, 25 vars
-
-cm06.noise$fullpath <- paste0(cm06.noise$path12, "/NOISE/", cm06.noise$filename)
-head(cm06.noise$fullpath)
-
-cm06.bats<- cm06 %>% filter(autoid != "Noise") %>% droplevels()
-summary(cm06.bats$autoid)
-# BARBAR EPTNIL MYODAU MYONAT NYCNOC   NoID PIPNAT PIPPYG PLEAUR VESMUR 
-#    469   1200     36     64    568    900   2644    600    947    294 
-# 7722 files 
-
-cm06.bats$fullpath <- paste0(cm06.bats$path12, "/", cm06.bats$filename)
-head(cm06.bats$fullpath)
-
-cm06.subset <- full_join(cm06.noise, cm06.bats)
-# 8022 obs of 26 vars - good!
-summary(cm06.subset)
-
-cm06.subset1 <- cm06.subset %>% 
-  select(filename, fullpath, 
-         DATE, TIME, HOUR, 
-         DATE_12, TIME.12, HOUR.12, 
-         autoid, site, month) %>% droplevels()
-summary(cm06.subset1)
-# 8022 obs of 11 vars
-
-test <- unique(cm06.subset1$fullpath)
-#8022 unique filepaths - good!
+test <- unique(cm06$fullpath)
 
 ## Now try copying over CM-06 files... 
-cm06_files <- as.list(cm06.subset1$fullpath)
+cm06_files <- as.list(cm06$fullpath)
 cm06_files_list <- unlist(cm06_files)
 
-dir.create("P:/SW_CoastalMonitoring/Data_analysis_2024/MSc_Theses/Judith/CM-06_subset1")
+dir.create("P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-06_subset")
 
 ## This will take a while: 
 file.copy(from = cm06_files_list,
-          to = "P:/SW_CoastalMonitoring/Data_analysis_2024/MSc_Theses/Judith/CM-06_subset1")
+          to = "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-06_subset")
 beep()
 
-## attach metadata
-write.csv(cm42.subset1, 
-          "P:/SW_CoastalMonitoring/Data_analysis_2024/MSc_Theses/Judith/CM-42_subset1/CM42_JudithSubset1_meta.csv" )
+#problem copying P:\SW_CoastalMonitoring\Data_collection_2025\CM-06\WAV\KPRO_V1_30.06.2025_CM-06\Data\\2LU00840_20250604_020529.wav, did it by hand. 
+
+
+
+### CM-32 ### 
+#7490
+
+cm32 <- fp %>% filter(site == "CM-32") %>% droplevels()
+levels(cm32$path1)
+
+cm32$fullpath <- paste0(cm32$path1, cm32$filename)
+head(cm32$fullpath)
+
+test <- unique(cm32$fullpath)
+
+## Now try copying over CM-32 files... 
+cm32_files <- as.list(cm32$fullpath)
+cm32_files_list <- unlist(cm32_files)
+
+dir.create("P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-32_subset")
+
+## This will take a while: 
+file.copy(from = cm32_files_list,
+          to = "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-32_subset")
+beep()
+
+# problem copying P:\SW_CoastalMonitoring\Data_collection_2025\CM-32\WAV\KPRO_V1\08.08.2025_CM-32\Data\2LU00652_20250805_192742.wav & problem copying P:\SW_CoastalMonitoring\Data_collection_2025\CM-32\WAV\KPRO_V1\30.09.2025_CM-32\Data\2LU00652_20250913_011005.wav, did that by hand
+
+### CM-52 ### 
+#6928
+
+cm52 <- fp %>% filter(site == "CM-52") %>% droplevels()
+levels(cm52$path1)
+
+cm52$fullpath <- paste0(cm52$path1, cm52$filename)
+head(cm52$fullpath)
+
+test <- unique(cm52$fullpath)
+
+## Now try copying over CM-52 files... 
+cm52_files <- as.list(cm52$fullpath)
+cm52_files_list <- unlist(cm52_files)
+
+dir.create("P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-52_subset")
+
+## This will take a while: 
+file.copy(from = cm52_files_list,
+          to = "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-52_subset")
+beep()
+
+# make id.csv files for all locations
+
+# read in id.csv-s
+
+input06 <- read_csv("data/IDfiles/CM-06/all_id.csv")
+input32 <- read_csv("data/IDfiles/CM-32/all_id.csv")
+input52 <- read_csv("data/IDfiles/CM-52/all_id.csv")
+
+names(input06) <- names(input32)
+
+# keep rows of selected locations
+
+input06_new <- input06[input06$`OUT FILE FS` %in% cm06$filename, ]
+input32_new <- input32[input32$`OUT FILE FS` %in% cm32$filename, ]
+input52_new <- input52[input52$`OUT FILE FS` %in% cm52$filename, ]
+
+# 3 with error, why?
+
+input06_new <- dplyr::bind_rows(
+  input06_new,
+  input06 %>% dplyr::filter(`OUT FILE FS` == "2LU00840_20250604_020529_000.wav")
+)
+
+input32_new <- dplyr::bind_rows(
+  input32_new,
+  input32 %>% dplyr::filter(`OUT FILE FS` == "2LU00652_20250805_192742_000.wav")
+)
+
+input32_new <- dplyr::bind_rows(
+  input32_new,
+  input32 %>%
+    dplyr::filter(`OUT FILE FS` == "2LU00652_20250913_011005_000.wav")
+)
+
+# add correct input and output files for the SD card
+
+input06_new$FOLDER <- "CM-06_subset"
+input06_new$OUTDIR <- "/Volumes/2LU00879   /3 sites"
+
+input32_new$FOLDER <- "CM-32_subset"
+input32_new$OUTDIR <- "/Volumes/2LU00879   /3 sites"
+
+input52_new$FOLDER <- "CM-52_subset"
+input52_new$OUTDIR <- "/Volumes/2LU00879   /3 sites"
+
+
+
+#write new id.csv-s
+
+write.csv(input06_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-06_subset/id_subset06.csv")
+write.csv(input32_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-32_subset/id_subset32.csv")
+write.csv(input52_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-52_subset/id_subset52.csv")
 
 
 
