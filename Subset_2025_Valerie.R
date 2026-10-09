@@ -590,6 +590,8 @@ cm[1] <- NULL
 lakesites <- c("CM-03", "CM-04", "CM-05", "CM-06", "CM-10", "CM-14", "CM-15", "CM-17", "CM-21", "CM-23", "CM-32", "CM-42", "CM-43", "CM-46", "CM-52", "CM-56")
 
 
+# takes too much time, has to be done in smaller pieces
+
 selected <- cm %>%
   filter(autoid != "Noise", Site %in% lakesites) %>%
   mutate(
