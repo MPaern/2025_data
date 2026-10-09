@@ -452,12 +452,6 @@ levels(fp$path1)
 ## Copying files 
 # not sure about noise subdirectories
 
-# starting with smallest- 52 and 32
-#didn't do 06- this might take a while. 
-
-
-
-
 
 ### CM-06 ### 
 #10215
@@ -583,6 +577,30 @@ input52_new$OUTDIR <- "/Volumes/2LU00879   /3 sites"
 write.csv(input06_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-06_subset/id_subset06.csv")
 write.csv(input32_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-32_subset/id_subset32.csv")
 write.csv(input52_new, "P:/SW_CoastalMonitoring/Data_analysis_2025/Valerie/CM-52_subset/id_subset52.csv")
+
+
+# Get size of all cm_2025 lakes without noises----------------------------
+
+# and ENIL, PPYG etc if needed.
+
+cm <- read_csv("cm_2025.csv")
+
+cm[1] <- NULL
+
+lakesites <- c("CM-03", "CM-04", "CM-05", "CM-06", "CM-10", "CM-14", "CM-15", "CM-17", "CM-21", "CM-23", "CM-32", "CM-42", "CM-43", "CM-46", "CM-52", "CM-56")
+
+
+selected <- cm %>%
+  filter(autoid != "Noise", Site %in% lakesites) %>%
+  mutate(
+    filepath = gsub(
+      "\\\\", "/",
+      paste(OUTDIR, FOLDER, filename, sep = "/")
+    ),
+    size = file.info(filepath)$size
+  )
+
+total_size <- sum(selected$size, na.rm = TRUE)
 
 
 
